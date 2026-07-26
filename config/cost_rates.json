@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "source": "https://ai.google.dev/gemini-api/docs/pricing",
+    "last_updated": "2026-07-21 UTC"
+  },
+  "rates": {
+    "gemini-3.6-flash": {
+      "input_1m": 1.50,
+      "output_1m": 7.50,
+      "cache_1m": 0.15
+    },
+    "gemini-3.5-flash": {
+      "input_1m": 1.50,
+      "output_1m": 9.00,
+      "cache_1m": 0.15
+    },
+    "gemini-3.5-flash-lite": {
+      "input_1m": 0.30,
+      "output_1m": 2.50,
+      "cache_1m": 0.03
+    },
+    "gemini-3.1-flash-tts-preview": {
+      "input_1m": 1.00,
+      "output_1m": 20.00
+    },
+    "lyria-3-clip-preview": {
+      "song_request": 0.04
+    },
+    "lyria-3-pro-preview": {
+      "song_request": 0.08
+    }
+  }
+}

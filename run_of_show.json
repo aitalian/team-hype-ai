@@ -1,0 +1,78 @@
+{
+  "settings": {
+    "music_folder": "music",
+    "music_file": "background_music.mp3",
+    "music_volume_db": -6,
+    "music_start_time_ms": 0,
+    "music_end_time_ms": 0,
+    "input_folder": "input",
+    "output_folder": "output",
+    "normalize_output": true,
+    "default_ducking_vol_db": -8,
+    "initial_silence_ms": 0,
+    "pre_sequence_music_ms": 0,
+    "normalize_voice_clips": true,
+    "default_voice_boost_db": 0,
+    "output_filename": "intro_assembled_output.mp3"
+  },
+  "sequence": [
+    {
+      "file": "It's Time.wav",
+      "ducking": false,
+      "pre_delay_ms": 2000,
+      "post_delay_ms": 500,
+      "thicken": false
+    },
+    {
+      "file": "Make Some Noise.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 0,
+      "thicken": true
+    },
+    {
+      "file": "For Your EAAAAGLES.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 0,
+      "thicken": false
+    },
+    {
+      "file": "sfx_eagle_sound.mp3",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 750,
+      "voice_boost_db": -2,
+      "thicken": false
+    },
+    {
+      "file": "Hitting the Ice.wav",
+      "ducking": true,
+      "pre_delay_ms": 1500,
+      "post_delay_ms": 100,
+      "thicken": true
+    },
+    {
+      "file": "$ROSTER",
+      "ducking": true,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 1400,
+      "thicken": false
+    },
+    {
+      "file": "LETS GO EAGLES.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 500,
+      "thicken": true
+    },
+    {
+      "file": "sfx_eagle_sound.mp3",
+      "ducking": false,
+      "pre_delay_ms": 250,
+      "post_delay_ms": 5000,
+      "voice_boost_db": -2,
+      "thicken": false
+    }
+  ]
+}

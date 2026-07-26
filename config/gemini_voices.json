@@ -1,0 +1,218 @@
+{
+  "_meta": {
+    "source": "https://docs.cloud.google.com/text-to-speech/docs/gemini-tts",
+    "last_updated": "2026-07-22 UTC"
+  },
+  "voices": [
+    {
+      "name": "Zephyr",
+      "description": "Bright",
+      "tone": "Bright",
+      "gender": "Female",
+      "category": "Bright / Upbeat"
+    },
+    {
+      "name": "Puck",
+      "description": "Upbeat",
+      "tone": "Upbeat",
+      "gender": "Male",
+      "category": "Bright / Upbeat"
+    },
+    {
+      "name": "Charon",
+      "description": "Informative",
+      "tone": "Informative",
+      "gender": "Male",
+      "category": "Informative / Knowledgeable"
+    },
+    {
+      "name": "Kore",
+      "description": "Firm",
+      "tone": "Firm",
+      "gender": "Female",
+      "category": "Bright / Upbeat"
+    },
+    {
+      "name": "Fenrir",
+      "description": "Excitable",
+      "tone": "Excitable",
+      "gender": "Male",
+      "category": "Other Unique Profiles"
+    },
+    {
+      "name": "Leda",
+      "description": "Youthful",
+      "tone": "Youthful",
+      "gender": "Female",
+      "category": "Other Unique Profiles"
+    },
+    {
+      "name": "Orus",
+      "description": "Firm",
+      "tone": "Firm",
+      "gender": "Male",
+      "category": "Firm / Mature"
+    },
+    {
+      "name": "Aoede",
+      "description": "Breezy",
+      "tone": "Breezy",
+      "gender": "Female",
+      "category": "Other Unique Profiles"
+    },
+    {
+      "name": "Callirrhoe",
+      "description": "Easy-going",
+      "tone": "Easy-going",
+      "gender": "Female",
+      "category": "Other Unique Profiles"
+    },
+    {
+      "name": "Autonoe",
+      "description": "Bright",
+      "tone": "Bright",
+      "gender": "Female",
+      "category": "Bright / Upbeat"
+    },
+    {
+      "name": "Enceladus",
+      "description": "Breathy",
+      "tone": "Breathy",
+      "gender": "Male",
+      "category": "Soft / Gentle"
+    },
+    {
+      "name": "Iapetus",
+      "description": "Clear",
+      "tone": "Clear",
+      "gender": "Male",
+      "category": "Clear / Smooth"
+    },
+    {
+      "name": "Umbriel",
+      "description": "Easy-going",
+      "tone": "Easy-going",
+      "gender": "Male",
+      "category": "Other Unique Profiles"
+    },
+    {
+      "name": "Algieba",
+      "description": "Smooth",
+      "tone": "Smooth",
+      "gender": "Male",
+      "category": "Clear / Smooth"
+    },
+    {
+      "name": "Despina",
+      "description": "Smooth",
+      "tone": "Smooth",
+      "gender": "Female",
+      "category": "Clear / Smooth"
+    },
+    {
+      "name": "Erinome",
+      "description": "Clear",
+      "tone": "Clear",
+      "gender": "Female",
+      "category": "Clear / Smooth"
+    },
+    {
+      "name": "Algenib",
+      "description": "Gravelly",
+      "tone": "Gravelly",
+      "gender": "Male",
+      "category": "Other Unique Profiles"
+    },
+    {
+      "name": "Rasalgethi",
+      "description": "Informative",
+      "tone": "Informative",
+      "gender": "Male",
+      "category": "Informative / Knowledgeable"
+    },
+    {
+      "name": "Laomedeia",
+      "description": "Upbeat",
+      "tone": "Upbeat",
+      "gender": "Female",
+      "category": "Bright / Upbeat"
+    },
+    {
+      "name": "Achernar",
+      "description": "Soft",
+      "tone": "Soft",
+      "gender": "Female",
+      "category": "Soft / Gentle"
+    },
+    {
+      "name": "Alnilam",
+      "description": "Firm",
+      "tone": "Firm",
+      "gender": "Male",
+      "category": "Firm / Mature"
+    },
+    {
+      "name": "Schedar",
+      "description": "Even",
+      "tone": "Even",
+      "gender": "Male",
+      "category": "Clear / Smooth"
+    },
+    {
+      "name": "Gacrux",
+      "description": "Mature",
+      "tone": "Mature",
+      "gender": "Female",
+      "category": "Firm / Mature"
+    },
+    {
+      "name": "Pulcherrima",
+      "description": "Forward",
+      "tone": "Forward",
+      "gender": "Male",
+      "category": "Other Unique Profiles"
+    },
+    {
+      "name": "Achird",
+      "description": "Friendly",
+      "tone": "Friendly",
+      "gender": "Male",
+      "category": "Friendly / Casual"
+    },
+    {
+      "name": "Zubenelgenubi",
+      "description": "Casual",
+      "tone": "Casual",
+      "gender": "Male",
+      "category": "Friendly / Casual"
+    },
+    {
+      "name": "Vindemiatrix",
+      "description": "Gentle",
+      "tone": "Gentle",
+      "gender": "Female",
+      "category": "Soft / Gentle"
+    },
+    {
+      "name": "Sadachbia",
+      "description": "Lively",
+      "tone": "Lively",
+      "gender": "Male",
+      "category": "Friendly / Casual"
+    },
+    {
+      "name": "Sadaltager",
+      "description": "Knowledgeable",
+      "tone": "Knowledgeable",
+      "gender": "Male",
+      "category": "Informative / Knowledgeable"
+    },
+    {
+      "name": "Sulafat",
+      "description": "Warm",
+      "tone": "Warm",
+      "gender": "Female",
+      "category": "Friendly / Casual"
+    }
+  ]
+}

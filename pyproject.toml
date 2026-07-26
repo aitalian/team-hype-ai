@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "teamhypeai"
+version = "1.0.0"
+description = "Sports intro and team announcement audio assembly powered by Google Gemini & Lyria AI"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "AGPL-3.0-only"}
+dependencies = [
+    "google-genai",
+    "pydub",
+    'audioop-lts; python_version >= "3.13"'
+]

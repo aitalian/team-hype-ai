@@ -1,0 +1,6 @@
+# Set default behavior to automatic text normalization (LF line endings)
+* text=auto eol=lf
+
+# Explicitly declare binary audio and asset files
+*.wav binary
+*.mp3 binary

@@ -1,0 +1,4 @@
+# Core Sports Audio Intro Assembly & Gemini AI Dependencies
+pydub>=0.25.1
+audioop-lts>=0.2.0; python_version >= "3.13"
+google-genai>=0.1.0
