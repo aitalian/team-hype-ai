@@ -465,7 +465,7 @@ def main():
 
     num_enhanced_clips = (sum(intro_enhancements) + sum(roster_enhancements)) if not args.skip_voice else 0
 
-    print("🚀 TEAMHYPE AI - SPORTS AUDIO GENERATOR")
+    print("🚀 TeamHypeAI - Sports Audio Generator")
     print(f"   TTS Model:          {tts_model}")
     print(f"   Script Model:       {llm_model} (mode: {enhance_mode})")
     print(f"   Music AI Model:     {music_model}")

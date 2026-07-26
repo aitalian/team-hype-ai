@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "teamhypeai"
+name = "team-hype-ai"
 version = "1.0.0"
 description = "Sports intro and team announcement audio assembly powered by Google Gemini & Lyria AI"
 readme = "README.md"

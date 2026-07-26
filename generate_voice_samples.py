@@ -105,7 +105,7 @@ def main():
         if args.force or not (os.path.exists(out_file) and os.path.getsize(out_file) > 0):
             to_generate.append(voice)
 
-    print("🚀 TEAMHYPE AI - ANNOUNCER VOICE PREVIEW GENERATOR")
+    print("🚀 TeamHypeAI - Announcer Voice Preview Generator")
     print(f"   Output Directory: {args.output_dir}")
     print(f"   TTS Model:        {args.tts_model}")
     print(f"   LLM Model:        {args.llm_model}")

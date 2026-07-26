@@ -10,6 +10,11 @@ Usage:
     python3 setup_wizard.py
 """
 
+import os
+import sys
+import json
+import subprocess
+
 from common import (
     load_dotenv_if_present,
     load_gemini_voices,
@@ -51,7 +56,7 @@ def prompt_choice(prompt_text, options, default_idx=0):
 
 def main():
     print("=" * 65)
-    print("🚀 TEAMHYPE AI - INTERACTIVE FIRST-TIME SETUP WIZARD")
+    print("🚀 TeamHypeAI - Interactive First-Time Setup Wizard")
     print("=" * 65)
     print("Welcome! This wizard will help you set up your sports team intro audio")
     print("pipeline in just a few quick steps.\n")
