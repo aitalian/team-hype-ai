@@ -163,6 +163,10 @@ def main():
         roster.append(p_data)
         player_count += 1
 
+    mascot_slug = team_mascot.strip().lower().replace(" ", "_").replace("-", "_") if team_mascot else "team"
+    roster_filename = f"roster_templates_{mascot_slug}.json"
+    run_of_show_filename = f"run_of_show_{mascot_slug}.json"
+
     # Step 8: Build and Write JSON Files
     roster_config = {
         "models": {
@@ -197,7 +201,7 @@ def main():
             "input_folder": "input",
             "output_folder": "output",
             "output_filename": f"{team_name.lower().replace(' ', '_')}_intro_assembled.mp3",
-            "roster_config": "roster_templates.json",
+            "roster_config": roster_filename,
             "normalize_output": True,
             "default_ducking_vol_db": -8,
             "normalize_voice_clips": True,
@@ -212,13 +216,13 @@ def main():
     }
 
     print("\n--- STEP 8: Saving Configuration Files ---")
-    with open("roster_templates.json", "w", encoding="utf-8") as f:
+    with open(roster_filename, "w", encoding="utf-8") as f:
         json.dump(roster_config, f, indent=2)
-    print("✅ Created roster_templates.json")
+    print(f"✅ Created {roster_filename}")
 
-    with open("run_of_show.json", "w", encoding="utf-8") as f:
+    with open(run_of_show_filename, "w", encoding="utf-8") as f:
         json.dump(run_of_show_config, f, indent=2)
-    print("✅ Created run_of_show.json")
+    print(f"✅ Created {run_of_show_filename}")
 
     print("\n" + "=" * 65)
     print("🎉 SETUP COMPLETE!")
@@ -226,12 +230,14 @@ def main():
     print(f"Team:        {team_name}")
     print(f"Announcer:   {voice_name}")
     print(f"Roster Size: {len(roster)} players")
+    print(f"Roster File: {roster_filename}")
+    print(f"Sequence:    {run_of_show_filename}")
     print(f"Out File:    output/{run_of_show_config['settings']['output_filename']}\n")
 
-    run_preview = prompt_string("🚀 Run 'python generate_gemini_audio.py --dry-run' now? (Y/n)", "Y").lower()
+    run_preview = prompt_string(f"🚀 Run 'python generate_gemini_audio.py -r {roster_filename} --dry-run' now? (Y/n)", "Y").lower()
     if run_preview in ["y", "yes"]:
         print("\n🔍 Previewing generated prompts and cost estimate...")
-        subprocess.run([sys.executable, "generate_gemini_audio.py", "--dry-run"])
+        subprocess.run([sys.executable, "generate_gemini_audio.py", "-r", roster_filename, "--dry-run"])
 
 
 if __name__ == "__main__":

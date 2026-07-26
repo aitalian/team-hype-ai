@@ -5,17 +5,17 @@
   },
   "voices": [
     {
-      "name": "Zephyr",
-      "description": "Bright",
-      "tone": "Bright",
-      "gender": "Female",
-      "category": "Bright / Upbeat"
-    },
-    {
       "name": "Puck",
       "description": "Upbeat",
       "tone": "Upbeat",
       "gender": "Male",
+      "category": "Bright / Upbeat"
+    },
+    {
+      "name": "Zephyr",
+      "description": "Bright",
+      "tone": "Bright",
+      "gender": "Female",
       "category": "Bright / Upbeat"
     },
     {

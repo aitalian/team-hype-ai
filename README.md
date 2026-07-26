@@ -38,7 +38,7 @@ pip3 install -r requirements.txt
 ```
 
 ### 2. Fast-Track Interactive Setup (Recommended for First-Time Users)
-Run the interactive setup wizard to generate your team roster and run-of-show sequence files automatically:
+Run the interactive setup wizard to generate team-specific roster and run-of-show sequence files automatically (e.g. `roster_templates_eagles.json` and `run_of_show_eagles.json`):
 ```bash
 python3 setup_wizard.py
 ```
