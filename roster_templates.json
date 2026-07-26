@@ -3,7 +3,10 @@
     "tts_model": "gemini-3.1-flash-tts-preview",
     "llm_model": "gemini-3.6-flash",
     "music_model": "lyria-3-clip-preview",
-    "enhance_scripts": "auto"
+    "enhance_scripts": "auto",
+    "batch_script_enhancement": true,
+    "batch_tts": true,
+    "tts_batch_size": 10
   },
   "announcer_persona": {
     "style": "High-energy championship arena PA announcer",

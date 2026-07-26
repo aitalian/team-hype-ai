@@ -118,6 +118,12 @@ def main():
         ],
         default_idx=0
     ).split(" ")[0]
+    batch_script_enhancement = prompt_string("Batch Script Enhancement", "true").lower() == "true"
+    batch_tts = prompt_string("Batch TTS", "true").lower() == "true"
+    try:
+        tts_batch_size = int(prompt_string("TTS Batch Size", "10"))
+    except ValueError:
+        tts_batch_size = 10
 
     # Step 5: Background Music Prompt
     print("\n--- STEP 5: Stadium Background Music ---")
@@ -173,7 +179,10 @@ def main():
             "tts_model": tts_model,
             "llm_model": llm_model,
             "music_model": music_model,
-            "enhance_scripts": enhance_mode
+            "enhance_scripts": enhance_mode,
+            "batch_script_enhancement": batch_script_enhancement,
+            "batch_tts": batch_tts,
+            "tts_batch_size": tts_batch_size
         },
         "announcer_persona": {
             "style": announcer_style,

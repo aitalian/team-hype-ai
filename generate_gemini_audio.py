@@ -27,6 +27,74 @@ import time
 import argparse
 import wave
 import random
+import re
+
+
+def parse_retry_duration_str(duration_str):
+    """
+    Parses duration strings like '1h47m9.647852093s', '2m30s', '45.5s', or '6429s' into total seconds (float).
+    """
+    if not duration_str:
+        return None
+
+    clean_str = str(duration_str).rstrip('.').strip()
+
+    pattern = r'^(?:(\d+)h)?(?:(\d+)m)?(?:([\d\.]+)s)?$'
+    match = re.match(pattern, clean_str)
+
+    if not match or not any(match.groups()):
+        try:
+            return float(clean_str.rstrip('s'))
+        except ValueError:
+            return None
+
+    hours = float(match.group(1)) if match.group(1) else 0.0
+    minutes = float(match.group(2)) if match.group(2) else 0.0
+    seconds = float(match.group(3)) if match.group(3) else 0.0
+
+    total_seconds = (hours * 3600.0) + (minutes * 60.0) + seconds
+    return total_seconds if total_seconds > 0 else None
+
+
+def extract_retry_delay_seconds(error, default_delay=60.0):
+    """
+    Extracts recommended retry wait duration in seconds from API rate limit / 429 errors.
+    First checks structured RetryInfo retryDelay fields, then parses regex patterns like
+    'Please retry in 1h47m9.647852093s' from error messages.
+    """
+    error_str = str(error)
+
+    # 1. Check structured RetryInfo retryDelay (e.g. 'retryDelay': '6429s')
+    retry_delay_match = re.search(r"['\"]retryDelay['\"]\s*:\s*['\"]([^'\"]+)['\"]", error_str)
+    if retry_delay_match:
+        parsed_sec = parse_retry_duration_str(retry_delay_match.group(1))
+        if parsed_sec is not None:
+            return parsed_sec
+
+    # 2. Check "Please retry in <duration>" pattern
+    text_match = re.search(r"[Pp]lease retry in\s+([0-9hms\.]+)", error_str)
+    if text_match:
+        parsed_sec = parse_retry_duration_str(text_match.group(1))
+        if parsed_sec is not None:
+            return parsed_sec
+
+    # 3. Fall back to default duration
+    return default_delay
+
+
+def format_duration_human(seconds):
+    """
+    Formats a duration in seconds into a clean human-readable format (e.g. 1h 47m 9.6s, 2m 30s, or 45.0s).
+    """
+    seconds = float(seconds)
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    mins, secs = divmod(seconds, 60)
+    if mins < 60:
+        return f"{int(mins)}m {secs:.1f}s"
+    hours, mins = divmod(mins, 60)
+    return f"{int(hours)}h {int(mins)}m {secs:.1f}s"
+
 
 from common import (
     load_dotenv_if_present,
@@ -59,7 +127,7 @@ def format_audio_tag(tag):
     return tag_str
 
 
-def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer"):
+def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", max_retries=3):
     """
     Uses LLM (e.g. gemini-3.6-flash) to rewrite and format plain text into rapid-fire, high-energy PA announcer scripts
     with phonetic inflections, concise drawn-out vowels, expressive audio tags (e.g. [excitedly], [shouting]),
@@ -76,24 +144,100 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
         f"Do not elongate words unnecessarily. Output ONLY the raw enhanced script text without explanations or quotes:\n\n"
         f"Input: {raw_text}"
     )
-    log_api_event("LLM_SCRIPT", "REQUEST", {"model": llm_model, "raw_text": raw_text, "style": persona_style})
-    try:
-        response = client.models.generate_content(
-            model=llm_model,
-            contents=prompt
-        )
-        enhanced = response.text.strip().strip('"\'')
-        final_script = enhanced if enhanced else raw_text
-        log_api_event("LLM_SCRIPT", "SUCCESS", {"model": llm_model, "enhanced_text": final_script})
-        return final_script
-    except Exception as e:
-        log_api_event("LLM_SCRIPT", "ERROR", {"model": llm_model, "error": str(e)})
-        print(f"   ⚠️ LLM Script Enhancement notice ({llm_model}): {e}. Using base prompt.")
-        return raw_text
+    for attempt in range(1, max_retries + 1):
+        log_api_event("LLM_SCRIPT", "REQUEST", {"model": llm_model, "raw_text": raw_text, "style": persona_style, "attempt": attempt})
+        try:
+            response = client.models.generate_content(
+                model=llm_model,
+                contents=prompt
+            )
+            enhanced = response.text.strip().strip('"\'')
+            final_script = enhanced if enhanced else raw_text
+            log_api_event("LLM_SCRIPT", "SUCCESS", {"model": llm_model, "enhanced_text": final_script})
+            return final_script
+        except Exception as e:
+            log_api_event("LLM_SCRIPT", "ERROR", {"model": llm_model, "attempt": attempt, "error": str(e)})
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
+                dur_fmt = format_duration_human(wait_sec)
+                print(f"   ⏳ Rate limit hit (429) during script enhancement. Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset (attempt {attempt}/{max_retries})...")
+                time.sleep(wait_sec)
+            else:
+                if attempt < max_retries:
+                    time.sleep(5)
+                else:
+                    print(f"   ⚠️ LLM Script Enhancement notice ({llm_model}): {e}. Using base prompt.")
+                    return raw_text
+
+    return raw_text
+
+
+def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", max_retries=3):
+    """
+    Uses LLM (e.g. gemini-3.6-flash) in a single API call to rewrite multiple raw scripts in batch into a JSON mapping.
+    items_to_enhance: list of dicts [{'id': key, 'raw_text': text}]
+    Returns: dict mapping item id -> enhanced text string, or None if fallback is required
+    """
+    if not items_to_enhance:
+        return {}
+
+    prompt_payload = {item['id']: item['raw_text'] for item in items_to_enhance}
+    prompt_json_str = json.dumps(prompt_payload, indent=2)
+
+    prompt = (
+        f"You are a professional PA sports announcer script writer. Style: {persona_style}.\n\n"
+        f"Rewrite each announcement text in the input JSON into a concise, rapid-fire, high-energy stadium PA script "
+        f"for speech synthesis. Keep delivery fast-paced, quick, and punchy. Use uppercase for strong emphasis, "
+        f"drawn-out vowels ONLY for key player names, and clear punctuation. You may include expressive bracketed audio tags "
+        f"(e.g. [excitedly], [shouting], [excitedly, fast-paced]) at key points.\n\n"
+        f"Output ONLY a valid JSON object matching the keys of the input JSON, where values are the enhanced script strings. "
+        f"Do not include markdown code block backticks or extra explanation text.\n\n"
+        f"Input JSON:\n{prompt_json_str}"
+    )
+
+    for attempt in range(1, max_retries + 1):
+        log_api_event("LLM_SCRIPT_BATCH", "REQUEST", {"model": llm_model, "count": len(items_to_enhance), "style": persona_style, "attempt": attempt})
+        try:
+            from google.genai import types
+            response = client.models.generate_content(
+                model=llm_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+            raw_resp = response.text.strip()
+            if raw_resp.startswith("```"):
+                lines = raw_resp.splitlines()
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                raw_resp = "\n".join(lines).strip()
+
+            enhanced_map = json.loads(raw_resp)
+            log_api_event("LLM_SCRIPT_BATCH", "SUCCESS", {"model": llm_model, "count": len(enhanced_map)})
+            return enhanced_map
+        except Exception as e:
+            log_api_event("LLM_SCRIPT_BATCH", "ERROR", {"model": llm_model, "attempt": attempt, "error": str(e)})
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
+                dur_fmt = format_duration_human(wait_sec)
+                print(f"   ⏳ Rate limit hit (429) during batch script enhancement. Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset (attempt {attempt}/{max_retries})...")
+                time.sleep(wait_sec)
+            else:
+                if attempt < max_retries:
+                    time.sleep(5)
+                else:
+                    print(f"   ⚠️ Batched LLM Script Enhancement notice ({llm_model}): {e}. Falling back to 1:1 script enhancement.")
+                    return None
+
+    return None
 
 
 def load_config(config_path):
     return load_json_file(config_path, description="roster template config")
+
 
 
 def build_intro_clip_announcement(clip, prefix="", global_audio_tags=""):
@@ -167,9 +311,10 @@ def build_player_announcement(player, template, prefix="", global_audio_tags="")
     return filename, text_prompt
 
 
-def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced_clips=0, generate_music=True, prompts=None, music_prompt="", music_duration_sec=30):
+def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced_clips=0, generate_music=True, prompts=None, music_prompt="", music_duration_sec=30, batch_script=True, batch_tts=True, batch_size=10):
+    import math
     print("\n" + "=" * 60)
-    print("📊 GEMINI COST-EFFECTIVENESS ESTIMATE & TOKEN COUNT")
+    print("📊 GEMINI COST-EFFECTIVENESS ESTIMATE & API QUOTA REPORT")
     print("=" * 60)
     
     if prompts:
@@ -195,7 +340,6 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
     total_input_tokens = voice_input_tokens + music_input_tokens + llm_input_tokens
 
     # Projected Output Tokens & Audio Duration
-    # Gemini audio output: ~25 audio tokens per second of audio output (~1,500 tokens/min)
     voice_audio_mins = num_clips * 0.05
     voice_output_tokens = int(num_clips * 3 * 25) if num_clips else 0  # ~75 tokens per ~3s clip
 
@@ -219,6 +363,21 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
         music_cost = 0.0
 
     total_cost = tts_cost + music_cost + llm_cost
+
+    # API Request Count Projections
+    llm_req_count = 1 if (batch_script and num_enhanced_clips > 0) else num_enhanced_clips
+    tts_req_count = math.ceil(num_clips / batch_size) if (batch_tts and num_clips > 0) else num_clips
+    music_req_count = 1 if generate_music else 0
+    total_req_count = llm_req_count + tts_req_count + music_req_count
+
+    unbatched_req_count = num_enhanced_clips + num_clips + music_req_count
+
+    print("⚡ API Request Quota Efficiency:")
+    print(f"   • Batched LLM Requests:   {llm_req_count} request(s) ({'Batched JSON' if batch_script else '1:1 Legacy'})")
+    print(f"   • Batched TTS Requests:   {tts_req_count} request(s) ({'Batched Slicing' if batch_tts else '1:1 Legacy'}, batch size={batch_size})")
+    if generate_music:
+        print(f"   • Music Request:         {music_req_count} request")
+    print(f"   👉 Total API Requests:    {total_req_count} request(s) (Saved {max(0, unbatched_req_count - total_req_count)} API calls vs unbatched {unbatched_req_count})\n")
 
     print("🔤 Estimated Input Tokens:")
     if num_clips > 0:
@@ -251,6 +410,7 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
     print(f"------------------------------------------------------------")
     print_pricing_disclaimer()
     print("=" * 60 + "\n")
+
 
 
 def save_audio_bytes(audio_bytes, mime_type, out_path):
@@ -333,8 +493,10 @@ def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, v
         except APIError as e:
             log_api_event("VOICE_TTS", "API_ERROR", {"filename": filename, "attempt": attempt, "error": str(e)})
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                print(f"   ⏳ Rate limit hit (429). Waiting 60s for API quota reset (attempt {attempt}/{max_retries})...")
-                time.sleep(60)
+                wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
+                dur_fmt = format_duration_human(wait_sec)
+                print(f"   ⏳ Rate limit hit (429). Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset (attempt {attempt}/{max_retries})...")
+                time.sleep(wait_sec)
             else:
                 if attempt < max_retries:
                     print(f"   ⚠️ Retrying API call for '{filename}' (attempt {attempt}/{max_retries}) due to: {e}")
@@ -354,7 +516,140 @@ def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, v
     return False
 
 
+def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voice_name="Puck", max_retries=3):
+    """
+    Generates high-energy announcer voice audio for a batch of clips in a single Gemini TTS API request,
+    then uses pydub.silence.split_on_silence to slice the generated audio into individual WAV files.
+
+    batch_items: list of dicts [{'filename': fname, 'text': text}]
+    Returns: bool (True if batch succeeded and all files sliced cleanly, False if fallback is required)
+    """
+    if not batch_items:
+        return True
+
+    from google.genai import types
+    from google.genai.errors import APIError
+
+    try:
+        from pydub import AudioSegment
+        from pydub.silence import split_on_silence
+    except ImportError:
+        print("   ⚠️ pydub library missing or missing audioop. Falling back to 1:1 TTS generation.")
+        return False
+
+    pause_delimiter = "\n\n... [pause 2s] ...\n\n"
+    combined_text = pause_delimiter.join(item['text'] for item in batch_items)
+    batch_filenames = [item['filename'] for item in batch_items]
+
+    temp_batch_path = os.path.join(output_dir, "_temp_batch_output.wav")
+
+    for attempt in range(1, max_retries + 1):
+        log_api_event("VOICE_TTS_BATCH", "REQUEST", {
+            "count": len(batch_items),
+            "filenames": batch_filenames,
+            "model": model_name,
+            "voice": voice_name,
+            "attempt": attempt
+        })
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=combined_text,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+                        )
+                    )
+                )
+            )
+
+            audio_data = None
+            mime_type = "audio/wav"
+            if response and getattr(response, "candidates", None):
+                candidate = response.candidates[0]
+                if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                    for part in candidate.content.parts:
+                        if hasattr(part, "inline_data") and part.inline_data:
+                            audio_data = part.inline_data.data
+                            mime_type = getattr(part.inline_data, "mime_type", "audio/wav")
+                            break
+
+            if audio_data:
+                save_audio_bytes(audio_data, mime_type, temp_batch_path)
+                log_api_event("VOICE_TTS_BATCH", "SUCCESS", {
+                    "count": len(batch_items),
+                    "bytes": len(audio_data)
+                })
+
+                try:
+                    full_audio = AudioSegment.from_file(temp_batch_path)
+                    dBFS = full_audio.dBFS
+                    silence_threshold = (dBFS - 16) if dBFS != float("-inf") else -40
+
+                    chunks = split_on_silence(
+                        full_audio,
+                        min_silence_len=600,
+                        silence_thresh=silence_threshold,
+                        keep_silence=200
+                    )
+
+                    if len(chunks) == len(batch_items):
+                        for idx, item in enumerate(batch_items):
+                            out_p = os.path.join(output_dir, item['filename'])
+                            chunks[idx].export(out_p, format="wav")
+                            print(f"   ✅ Gemini Voice Saved (Batched Slice {idx+1}/{len(batch_items)}): {out_p}")
+
+                        if os.path.exists(temp_batch_path):
+                            os.remove(temp_batch_path)
+                        time.sleep(6)
+                        return True
+                    else:
+                        print(f"   ⚠️ Batch audio slicing produced {len(chunks)} audio segments for {len(batch_items)} items.")
+                        print(f"      Triggering fallback to individual 1:1 TTS generation for this batch.")
+                        if os.path.exists(temp_batch_path):
+                            os.remove(temp_batch_path)
+                        return False
+                except Exception as slice_err:
+                    print(f"   ⚠️ Error slicing batch audio: {slice_err}. Triggering fallback to 1:1 TTS generation.")
+                    if os.path.exists(temp_batch_path):
+                        os.remove(temp_batch_path)
+                    return False
+            else:
+                finish_reason = "UNKNOWN"
+                if response and getattr(response, "candidates", None) and response.candidates:
+                    finish_reason = getattr(response.candidates[0], "finish_reason", "UNKNOWN")
+                raise RuntimeError(f"No audio data returned by Gemini API for batch (finish_reason: {finish_reason})")
+
+        except APIError as e:
+            log_api_event("VOICE_TTS_BATCH", "API_ERROR", {"attempt": attempt, "error": str(e)})
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
+                dur_fmt = format_duration_human(wait_sec)
+                print(f"   ⏳ Rate limit hit (429) during batch TTS. Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset...")
+                time.sleep(wait_sec)
+            else:
+                if attempt < max_retries:
+                    print(f"   ⚠️ Retrying batch API call (attempt {attempt}/{max_retries}) due to: {e}")
+                    time.sleep(5)
+                else:
+                    print(f"   ❌ Batch TTS Error: {e}. Falling back to 1:1 generation.")
+                    return False
+        except Exception as e:
+            log_api_event("VOICE_TTS_BATCH", "ERROR", {"attempt": attempt, "error": str(e)})
+            if attempt < max_retries:
+                print(f"   ⚠️ Retrying batch generation (attempt {attempt}/{max_retries}) due to: {e}")
+                time.sleep(5)
+            else:
+                print(f"   ❌ Batch TTS Error: {e}. Falling back to 1:1 generation.")
+                return False
+
+    return False
+
+
 def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, duration_sec=30, force=False, max_retries=3):
+
     """
     Generates background music track exclusively using Google Lyria AI music models.
     """
@@ -408,8 +703,10 @@ def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, d
         except APIError as e:
             log_api_event("LYRIA_MUSIC", "API_ERROR", {"filename": filename, "attempt": attempt, "error": str(e)})
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                print(f"   ⏳ Rate limit hit (429). Waiting 60s for API quota reset (attempt {attempt}/{max_retries})...")
-                time.sleep(60)
+                wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
+                dur_fmt = format_duration_human(wait_sec)
+                print(f"   ⏳ Rate limit hit (429). Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset (attempt {attempt}/{max_retries})...")
+                time.sleep(wait_sec)
             else:
                 if attempt < max_retries:
                     print(f"   ⚠️ Retrying API call for music (attempt {attempt}/{max_retries}) due to: {e}")
@@ -443,6 +740,12 @@ def main():
     parser.add_argument("--voice", default=None, help=f"Prebuilt Gemini voice persona (default: {DEFAULT_VOICE_PERSONA} or config announcer_persona.voice_name)")
     parser.add_argument("--audio-tags", default=None, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS} or config announcer_persona.audio_tags)")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=None, help=f"LLM script enhancement mode: auto (only clips without manual phonetic overrides), always, or never (default: {DEFAULT_ENHANCE_MODE} or config enhance_scripts)")
+    parser.add_argument("--batch-script", action="store_true", default=None, help="Batch LLM script enhancement requests into a single JSON API call (default: True)")
+    parser.add_argument("--no-batch-script", action="store_false", dest="batch_script", help="Disable batched LLM script enhancement and fall back to 1:1 API requests")
+    parser.add_argument("--batch-tts", action="store_true", default=None, help="Batch Gemini TTS requests and slice generated audio via pydub (default: True)")
+    parser.add_argument("--no-batch-tts", action="store_false", dest="batch_tts", help="Disable batched TTS generation and fall back to 1:1 API requests")
+    parser.add_argument("--batch-size", type=int, default=None, help="Maximum number of voice clips per batched TTS request (default: 10)")
+    parser.add_argument("--legacy-mode", action="store_true", help="Shortcut to disable all batching and fall back to legacy 1:1 API execution")
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically accept cost estimate and bypass confirmation prompt")
     parser.add_argument("--force", action="store_true", help="Force regeneration of existing audio clips")
     parser.add_argument("--dry-run", action="store_true", help="Preview generated prompts and cost estimate without calling Google Cloud Gemini APIs")
@@ -459,12 +762,24 @@ def main():
     persona = config.get("announcer_persona", {})
     music_config = config.get("music", {})
 
-    # Model, Voice, Audio Tags, and Script Enhancement Resolution (CLI flag > Config file setting > Centralized Default)
+    # Model, Voice, Audio Tags, and Script Enhancement Resolution
     tts_model = args.tts_model or config.get("tts_model") or models_cfg.get("tts_model") or DEFAULT_TTS_MODEL
     llm_model = args.llm_model or config.get("llm_model") or models_cfg.get("llm_model") or DEFAULT_LLM_MODEL
     music_model = args.music_model or config.get("music_model") or models_cfg.get("music_model") or music_config.get("model") or DEFAULT_MUSIC_MODEL
     voice_persona = args.voice or config.get("voice") or persona.get("voice_name") or persona.get("voice") or DEFAULT_VOICE_PERSONA
     global_audio_tags = args.audio_tags or config.get("audio_tags") or persona.get("audio_tags") or persona.get("audio_tag") or DEFAULT_AUDIO_TAGS
+
+    if args.legacy_mode:
+        batch_script = False
+        batch_tts = False
+        batch_size = 1
+    else:
+        batch_script = args.batch_script if args.batch_script is not None else config.get("batch_script_enhancement", models_cfg.get("batch_script_enhancement", True))
+        batch_tts = args.batch_tts if args.batch_tts is not None else config.get("batch_tts", models_cfg.get("batch_tts", True))
+        try:
+            batch_size = int(args.batch_size or config.get("tts_batch_size", models_cfg.get("tts_batch_size", 10)))
+        except (ValueError, TypeError):
+            batch_size = 10
 
     raw_enhance = args.enhance_scripts if args.enhance_scripts is not None else config.get("enhance_scripts", models_cfg.get("enhance_scripts", DEFAULT_ENHANCE_MODE))
     if isinstance(raw_enhance, bool):
@@ -478,8 +793,6 @@ def main():
     player_template = config.get("player_template", "Number {number}, {name}!")
     roster = config.get("roster", [])
     intro_clips = config.get("intro_clips", [])
-
-    total_clips = len(roster) + len(intro_clips)
 
     # Determine which items get LLM Script Enhancement
     intro_enhancements = []
@@ -498,30 +811,37 @@ def main():
         else:
             roster_enhancements.append(False)
 
-    num_enhanced_clips = (sum(intro_enhancements) + sum(roster_enhancements)) if not args.skip_voice else 0
-
     print("🚀 TeamHypeAI - Sports Audio Generator")
     print(f"   TTS Model:          {tts_model}")
     print(f"   Script Model:       {llm_model} (mode: {enhance_mode})")
     print(f"   Music AI Model:     {music_model}")
     print(f"   Announcer Voice:    {voice_persona}")
     print(f"   Audio Tags:         {format_audio_tag(global_audio_tags)}")
+    print(f"   Batching Mode:      LLM Batch={batch_script}, TTS Batch={batch_tts} (batch_size={batch_size})")
 
-    # Determine which voice clips and music track actually require API calls
     to_generate_prompts = []
     num_voice_to_generate = 0
     num_enhanced_to_generate = 0
 
+    items_to_process = []
+
     if not args.skip_voice:
         for idx, clip in enumerate(intro_clips):
-            p_file = os.path.join(args.output_dir, clip["filename"])
+            fname = clip["filename"]
+            p_file = os.path.join(args.output_dir, fname)
             is_missing = args.force or not (os.path.exists(p_file) and os.path.getsize(p_file) > 0)
             if is_missing:
                 num_voice_to_generate += 1
                 txt = build_intro_clip_announcement(clip, prefix, global_audio_tags)
                 to_generate_prompts.append(txt)
-                if intro_enhancements[idx]:
+                needs_enh = intro_enhancements[idx]
+                if needs_enh:
                     num_enhanced_to_generate += 1
+                items_to_process.append({
+                    "filename": fname,
+                    "raw_text": txt,
+                    "needs_enhancement": needs_enh
+                })
 
         for idx, p in enumerate(roster):
             fname, txt = build_player_announcement(p, player_template, prefix, global_audio_tags)
@@ -530,8 +850,14 @@ def main():
             if is_missing:
                 num_voice_to_generate += 1
                 to_generate_prompts.append(txt)
-                if roster_enhancements[idx]:
+                needs_enh = roster_enhancements[idx]
+                if needs_enh:
                     num_enhanced_to_generate += 1
+                items_to_process.append({
+                    "filename": fname,
+                    "raw_text": txt,
+                    "needs_enhancement": needs_enh
+                })
 
     m_file = music_config.get("filename", "itstime.mp3")
     m_path = os.path.join(args.music_dir, m_file)
@@ -556,11 +882,14 @@ def main():
         generate_music=generate_music_needed,
         prompts=to_generate_prompts,
         music_prompt=m_prompt_text,
-        music_duration_sec=m_dur
+        music_duration_sec=m_dur,
+        batch_script=batch_script,
+        batch_tts=batch_tts,
+        batch_size=batch_size
     )
 
     if args.dry_run:
-        print("🔍 DRY RUN MODE -- Generated Prompts Preview:")
+        print("🔍 DRY RUN MODE -- Generated Prompts & Batch Execution Preview:")
         print("\n--- INTRO CLIPS ---")
         for idx, clip in enumerate(intro_clips):
             fname = clip["filename"]
@@ -621,32 +950,61 @@ def main():
         sys.exit(1)
 
     # 1. Generate Voice Clips via Gemini TTS (with optional LLM Script Enhancement)
-    if not args.skip_voice:
+    if not args.skip_voice and items_to_process:
         print("\n🎙️  Generating Voice Clips via Google Gemini AI...")
-        for idx, clip in enumerate(intro_clips):
-            fname = clip["filename"]
-            out_path = os.path.join(args.output_dir, fname)
-            if not args.force and os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-                print(f"   ⏩ Skipping existing voice clip: {out_path}")
-                continue
 
-            txt = build_intro_clip_announcement(clip, prefix, global_audio_tags)
-            if intro_enhancements[idx]:
-                print(f"🧠 Enhancing announcer script for '{fname}' via {llm_model}...")
-                txt = enhance_announcer_script(client, txt, llm_model, persona.get("style", "High-energy stadium PA announcer"))
-            generate_audio_clip_gemini(client, txt, fname, args.output_dir, tts_model, voice_persona, force=args.force)
+        # Step A: Script Enhancement (Batched vs 1:1 Fallback)
+        items_needing_enh = [item for item in items_to_process if item["needs_enhancement"]]
 
-        for idx, p in enumerate(roster):
-            fname, txt = build_player_announcement(p, player_template, prefix, global_audio_tags)
-            out_path = os.path.join(args.output_dir, fname)
-            if not args.force and os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-                print(f"   ⏩ Skipping existing voice clip: {out_path}")
-                continue
+        if items_needing_enh:
+            if batch_script:
+                print(f"🧠 Batch enhancing {len(items_needing_enh)} announcer script(s) via {llm_model} (1 API call)...")
+                batch_payload = [{"id": item["filename"], "raw_text": item["raw_text"]} for item in items_needing_enh]
+                enhanced_map = batch_enhance_announcer_scripts(client, batch_payload, llm_model, persona.get("style", "High-energy stadium PA announcer"))
 
-            if roster_enhancements[idx]:
-                print(f"🧠 Enhancing announcer script for '{fname}' via {llm_model}...")
-                txt = enhance_announcer_script(client, txt, llm_model, persona.get("style", "High-energy stadium PA announcer"))
-            generate_audio_clip_gemini(client, txt, fname, args.output_dir, tts_model, voice_persona, force=args.force)
+                if enhanced_map and isinstance(enhanced_map, dict):
+                    for item in items_to_process:
+                        if item["filename"] in enhanced_map:
+                            item["final_text"] = enhanced_map[item["filename"]]
+                        else:
+                            item["final_text"] = item["raw_text"]
+                else:
+                    # Fall back to 1:1 LLM enhancement
+                    print("   🧠 Executing 1:1 LLM enhancement fallback per item...")
+                    for item in items_to_process:
+                        if item["needs_enhancement"]:
+                            item["final_text"] = enhance_announcer_script(client, item["raw_text"], llm_model, persona.get("style", "High-energy stadium PA announcer"))
+                        else:
+                            item["final_text"] = item["raw_text"]
+            else:
+                for item in items_to_process:
+                    if item["needs_enhancement"]:
+                        print(f"🧠 Enhancing announcer script for '{item['filename']}' via {llm_model}...")
+                        item["final_text"] = enhance_announcer_script(client, item["raw_text"], llm_model, persona.get("style", "High-energy stadium PA announcer"))
+                    else:
+                        item["final_text"] = item["raw_text"]
+        else:
+            for item in items_to_process:
+                item["final_text"] = item["raw_text"]
+
+        # Step B: TTS Audio Generation (Batched Slicing vs 1:1 Fallback)
+        if batch_tts:
+            print(f"🔊 Generating {len(items_to_process)} voice clip(s) using batched TTS requests (batch size: {batch_size})...")
+            # Chunk items into batches
+            chunks = [items_to_process[i:i + batch_size] for i in range(0, len(items_to_process), batch_size)]
+            for chunk_idx, chunk in enumerate(chunks, start=1):
+                print(f"   🎙️ Processing TTS Batch {chunk_idx}/{len(chunks)} ({len(chunk)} clip(s))...")
+                batch_payload = [{"filename": item["filename"], "text": item["final_text"]} for item in chunk]
+                success = generate_audio_batch_gemini(client, batch_payload, args.output_dir, tts_model, voice_persona)
+
+                if not success:
+                    print(f"   ⚠️ Falling back to 1:1 TTS generation for Batch {chunk_idx} items...")
+                    for item in chunk:
+                        generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, force=args.force)
+        else:
+            print(f"🔊 Generating {len(items_to_process)} voice clip(s) using 1:1 TTS API requests...")
+            for item in items_to_process:
+                generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, force=args.force)
 
     # 2. Generate Music Clip via Google Lyria Model
     if not args.skip_music:
@@ -659,3 +1017,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
