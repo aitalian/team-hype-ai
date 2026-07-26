@@ -46,6 +46,7 @@ DEFAULT_LLM_MODEL = "gemini-3.6-flash"
 DEFAULT_MUSIC_MODEL = "lyria-3-clip-preview"
 DEFAULT_VOICE_PERSONA = "Puck"
 DEFAULT_ENHANCE_MODE = "auto"
+DEFAULT_AUDIO_TAGS = "[excitedly, fast-paced]"
 
 PRICING_DISCLAIMER_TEXT = (
     "⚠️  DISCLAIMER: This figure is only an estimate based on sample\n"

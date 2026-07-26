@@ -21,6 +21,7 @@ from common import (
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_MUSIC_MODEL,
+    DEFAULT_AUDIO_TAGS,
 )
 
 
@@ -102,11 +103,12 @@ def main():
     selected_voice_opt = prompt_choice("Select Announcer Voice Persona:", voice_options, default_idx=0)
     voice_name = selected_voice_opt.split(" ")[0]
 
-    # Step 4: AI Models & Script Enhancement
-    print("\n--- STEP 4: AI Models & Script Enhancement ---")
+    # Step 4: AI Models, Audio Tags & Script Enhancement
+    print("\n--- STEP 4: AI Models & Audio Tags ---")
     tts_model = prompt_string("TTS Voice Model", DEFAULT_TTS_MODEL)
     llm_model = prompt_string("Script Synthesizer Model", DEFAULT_LLM_MODEL)
     music_model = prompt_string("Background Music AI Model", DEFAULT_MUSIC_MODEL)
+    audio_tags = prompt_string("🔊 Gemini TTS Audio Tags (e.g. [excitedly], [shouting], [excitedly, fast-paced])", DEFAULT_AUDIO_TAGS)
     enhance_mode = prompt_choice(
         "LLM Announcer Script Enhancement Mode:",
         [
@@ -127,13 +129,13 @@ def main():
     # Step 6: Intro Clips
     print("\n--- STEP 6: Intro Announcement Clips ---")
     intro_clips = [
-        {"filename": "It's Time.wav", "text": "It's time!"},
-        {"filename": f"For Your {team_mascot}.wav", "text": f"For your {team_name}!", "phonetic": f"For your {team_mascot}!"},
-        {"filename": f"LETS GO {team_mascot}.wav", "text": f"Let's go {team_name}!", "phonetic": f"LET'S GOOOOOOOOOO {team_name}!"}
+        {"filename": "It's Time.wav", "text": "It's time!", "audio_tags": "[excitedly]"},
+        {"filename": f"For Your {team_mascot}.wav", "text": f"For your {team_name}!", "phonetic": f"For your {team_mascot}!", "audio_tags": "[shouting]"},
+        {"filename": f"LETS GO {team_mascot}.wav", "text": f"Let's go {team_name}!", "phonetic": f"LET'S GOOOOOOOOOO {team_name}!", "audio_tags": "[shouting, hype]"}
     ]
     print("Default Intro Clips configured:")
     for clip in intro_clips:
-        print(f"  • {clip['filename']} -> \"{clip.get('phonetic', clip['text'])}\"")
+        print(f"  • {clip['filename']} -> \"{clip.get('phonetic', clip['text'])}\" (tags: {clip.get('audio_tags', '')})")
 
     # Step 7: Player Roster Input
     print("\n--- STEP 7: Team Roster Entry ---")
@@ -172,6 +174,7 @@ def main():
         "announcer_persona": {
             "style": announcer_style,
             "voice_name": voice_name,
+            "audio_tags": audio_tags,
             "prompt_prefix": "Say rapidly with intense, fast-paced stadium PA announcer energy, quick delivery, and high enthusiasm: "
         },
         "player_template": "Number {number}, {name}!",

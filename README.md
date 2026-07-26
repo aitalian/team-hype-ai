@@ -8,6 +8,7 @@ An automated Python tool to create professional, stadium-quality audio introduct
 
 - **Google Gemini & Lyria AI Audio Stack**: Synthesize rapid-fire stadium announcer voice clips (`gemini-3.1-flash-tts-preview`), AI announcer script polishing (`gemini-3.6-flash`), and entrance music tracks (`lyria-3-clip-preview`, `lyria-3-pro-preview`).
 - **Rapid-Fire PA Pacing & Duration Control**: Prompt instructions optimized for quick, high-energy PA delivery, keeping 18+ player intros under 2 minutes.
+- **Google Gemini Audio Tags Support**: Drive expressive speech delivery using Gemini TTS bracketed audio tags (e.g. `[excitedly]`, `[shouting]`, `[excitedly, very fast]`). Configure tags globally or as per-player / per-clip overrides.
 - **Custom Player Intros & Template Variables**: Custom player intro overrides (`custom_intro`) supporting template placeholders (`{name}`, `{number}`, `{phonetic}`, `{phonetic_number}`) for star players or unique announcements.
 - **Detailed API Execution Logging**: Timestamped API execution log (`logs/api_execution.log`) tracking prompts, candidate details, finish reasons, token counts, and error tracebacks with API key redaction.
 - **Interactive First-Time Setup Wizard (`setup_wizard.py`)**: Batteries-included terminal wizard stepping first-time users through team names, announcer personas, models, intro clips, and player rosters.
@@ -128,6 +129,7 @@ Add optional keys to any player entry in `roster_templates.json` to customize pr
   "announcer_persona": {
     "style": "High-energy championship arena PA announcer",
     "voice_name": "Puck",
+    "audio_tags": "[excitedly, fast-paced]",
     "prompt_prefix": "Say rapidly with intense, fast-paced stadium PA announcer energy, quick delivery, and high enthusiasm: "
   },
   "player_template": "Number {number}, {name}!",
@@ -136,12 +138,12 @@ Add optional keys to any player entry in `roster_templates.json` to customize pr
     { "number": "87", "name": "Reese Martin", "custom_intro": "Wearing number {number}, the one, the only, {name}!" },
     { "number": "14", "name": "Lochlane Thompson", "phonetic": "Lock-lin Tom-sun" },
     { "number": "67", "name": "Peyton Garcia", "phonetic_number": "Six. Sev-uhn." },
-    { "number": "30", "name": "Dakota Harris", "phonetic": "Duh-KOH-tuh HAIR-iss", "post_delay_ms": 1500 }
+    { "number": "98", "name": "Drew Clark", "custom_intro": "Your Team Captain, wearing number {number}, Mr. {name}!", "audio_tags": "[shouting, hype]" }
   ],
   "intro_clips": [
-    { "filename": "It's Time.wav", "text": "It's time!" },
-    { "filename": "For Your EAAAAGLES.wav", "text": "For your Eagles!", "phonetic": "For your EAAAAAAGLLLLLLESSSS!" },
-    { "filename": "LETS GO EAGLES.wav", "text": "Let's go Eagles!", "phonetic": "LET'S GOOOOOOOOOO Eagles!" }
+    { "filename": "It's Time.wav", "text": "It's time!", "audio_tags": "[excitedly]" },
+    { "filename": "For Your EAAAAGLES.wav", "text": "For your Eagles!", "audio_tags": "[excitedly, very fast]" },
+    { "filename": "LETS GO EAGLES.wav", "text": "Let's go Eagles!", "audio_tags": "[shouting, hype]" }
   ],
   "music": {
     "filename": "itstime.mp3",

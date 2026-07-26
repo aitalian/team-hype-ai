@@ -8,6 +8,7 @@
   "announcer_persona": {
     "style": "High-energy championship arena PA announcer",
     "voice_name": "Puck",
+    "audio_tags": "[excitedly, fast-paced]",
     "prompt_prefix": "Say rapidly with intense, fast-paced stadium PA announcer energy, quick delivery, and high enthusiasm: "
   },
   "player_template": "Number {number}, {name}!",
@@ -101,6 +102,7 @@
       "number": "98",
       "name": "Drew Clark",
       "custom_intro": "Your Team Captain, wearing number {number}, Mr. {name}!",
+      "audio_tags": "[shouting, hype]",
       "post_delay_ms": 1500
     }
   ],
@@ -108,17 +110,20 @@
     {
       "filename": "It's Time.wav",
       "text": "It's time!",
-      "phonetic": "It's. Tyme."
+      "phonetic": "It's. Tyme.",
+      "audio_tags": "[excitedly]"
     },
     {
       "filename": "Make Some Noise.wav",
       "text": "Make some noise!",
-      "phonetic": "Mey-k. Sum. Noyz!"
+      "phonetic": "Mey-k. Sum. Noyz!",
+      "audio_tags": "[shouting]"
     },
     {
       "filename": "For Your EAAAAGLES.wav",
       "text": "For your Eagles!",
-      "phonetic": "For your eeeeee-guuuhhh-llz!"
+      "phonetic": "For your eeeeee-guuuhhh-llz!",
+      "audio_tags": "[excitedly, very fast]"
     },
     {
       "filename": "Hitting the Ice.wav",
@@ -128,7 +133,8 @@
     {
       "filename": "LETS GO EAGLES.wav",
       "text": "Let's go Eagles!",
-      "phonetic": "LET'S GOOOOOOOOOO Eagles!"
+      "phonetic": "LET'S GOOOOOOOOOO Eagles!",
+      "audio_tags": "[shouting, hype]"
     }
   ],
   "music": {

@@ -40,13 +40,30 @@ from common import (
     DEFAULT_MUSIC_MODEL,
     DEFAULT_VOICE_PERSONA,
     DEFAULT_ENHANCE_MODE,
+    DEFAULT_AUDIO_TAGS,
 )
+
+
+def format_audio_tag(tag):
+    """
+    Normalizes audio tags (e.g., 'excitedly', 'excitedly, fast', or '[shouting]') into clean bracketed audio tags (e.g., '[excitedly, fast]').
+    Returns empty string if tag is empty/None.
+    """
+    if not tag:
+        return ""
+    tag_str = str(tag).strip()
+    if not tag_str:
+        return ""
+    if not (tag_str.startswith("[") and tag_str.endswith("]")):
+        tag_str = f"[{tag_str}]"
+    return tag_str
 
 
 def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer"):
     """
     Uses LLM (e.g. gemini-3.6-flash) to rewrite and format plain text into rapid-fire, high-energy PA announcer scripts
-    with phonetic inflections, concise drawn-out vowels, and PA stadium emphasis cues prior to TTS generation.
+    with phonetic inflections, concise drawn-out vowels, expressive audio tags (e.g. [excitedly], [shouting]),
+    and PA stadium emphasis cues prior to TTS generation.
     """
     prompt = (
         f"You are a professional PA sports announcer script writer. "
@@ -54,6 +71,8 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
         f"Rewrite the following announcement text into a concise, rapid-fire, high-energy stadium PA script "
         f"for speech synthesis. Keep the delivery fast-paced, quick, and punchy. Use uppercase for strong emphasis, "
         f"drawn-out vowels ONLY for key player names, and clear punctuation to guide rapid pitch and inflection. "
+        f"You may include expressive bracketed audio tags (e.g. [excitedly], [shouting], [excitedly, fast-paced]) "
+        f"at key points or at the beginning of the text to guide Gemini TTS voice delivery. "
         f"Do not elongate words unnecessarily. Output ONLY the raw enhanced script text without explanations or quotes:\n\n"
         f"Input: {raw_text}"
     )
@@ -77,13 +96,24 @@ def load_config(config_path):
     return load_json_file(config_path, description="roster template config")
 
 
-def build_player_announcement(player, template, prefix=""):
+def build_intro_clip_announcement(clip, prefix="", global_audio_tags=""):
+    display_text = clip.get("phonetic") or clip.get("spoken_text") or clip.get("text", "")
+    clip_tag = format_audio_tag(clip.get("audio_tags") or clip.get("audio_tag")) or format_audio_tag(global_audio_tags)
+
+    if clip_tag and not display_text.strip().startswith("["):
+        display_text = f"{clip_tag} {display_text}"
+
+    return f"{prefix}{display_text}" if prefix else display_text
+
+
+def build_player_announcement(player, template, prefix="", global_audio_tags=""):
     num = player.get("number", "")
     name = player.get("name", "")
     phonetic_name = player.get("phonetic") or player.get("pronunciation")
     phonetic_num = player.get("phonetic_number") or player.get("number_phonetic")
     custom_intro = player.get("custom_intro")
     pretext = player.get("pretext") or player.get("prefix")
+    item_audio_tag = format_audio_tag(player.get("audio_tags") or player.get("audio_tag")) or format_audio_tag(global_audio_tags)
 
     # Filename uses official player jersey number and name
     filename = f"#{num} {name}.wav"
@@ -128,6 +158,9 @@ def build_player_announcement(player, template, prefix=""):
             formatted = f"{pretext_clean} {std_formatted}"
     else:
         formatted = active_template.format(number=spoken_num, name=spoken_name)
+
+    if item_audio_tag and not formatted.strip().startswith("["):
+        formatted = f"{item_audio_tag} {formatted}"
 
     text_prompt = f"{prefix}{formatted}" if prefix else formatted
 
@@ -408,6 +441,7 @@ def main():
     parser.add_argument("--llm-model", default=None, help=f"Gemini LLM model (default: {DEFAULT_LLM_MODEL} or config models.llm_model)")
     parser.add_argument("--music-model", default=None, help=f"Google Lyria model (default: {DEFAULT_MUSIC_MODEL} or config models.music_model)")
     parser.add_argument("--voice", default=None, help=f"Prebuilt Gemini voice persona (default: {DEFAULT_VOICE_PERSONA} or config announcer_persona.voice_name)")
+    parser.add_argument("--audio-tags", default=None, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS} or config announcer_persona.audio_tags)")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=None, help=f"LLM script enhancement mode: auto (only clips without manual phonetic overrides), always, or never (default: {DEFAULT_ENHANCE_MODE} or config enhance_scripts)")
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically accept cost estimate and bypass confirmation prompt")
     parser.add_argument("--force", action="store_true", help="Force regeneration of existing audio clips")
@@ -425,11 +459,12 @@ def main():
     persona = config.get("announcer_persona", {})
     music_config = config.get("music", {})
 
-    # Model, Voice, and Script Enhancement Resolution (CLI flag > Config file setting > Centralized Default)
+    # Model, Voice, Audio Tags, and Script Enhancement Resolution (CLI flag > Config file setting > Centralized Default)
     tts_model = args.tts_model or config.get("tts_model") or models_cfg.get("tts_model") or DEFAULT_TTS_MODEL
     llm_model = args.llm_model or config.get("llm_model") or models_cfg.get("llm_model") or DEFAULT_LLM_MODEL
     music_model = args.music_model or config.get("music_model") or models_cfg.get("music_model") or music_config.get("model") or DEFAULT_MUSIC_MODEL
     voice_persona = args.voice or config.get("voice") or persona.get("voice_name") or persona.get("voice") or DEFAULT_VOICE_PERSONA
+    global_audio_tags = args.audio_tags or config.get("audio_tags") or persona.get("audio_tags") or persona.get("audio_tag") or DEFAULT_AUDIO_TAGS
 
     raw_enhance = args.enhance_scripts if args.enhance_scripts is not None else config.get("enhance_scripts", models_cfg.get("enhance_scripts", DEFAULT_ENHANCE_MODE))
     if isinstance(raw_enhance, bool):
@@ -470,6 +505,7 @@ def main():
     print(f"   Script Model:       {llm_model} (mode: {enhance_mode})")
     print(f"   Music AI Model:     {music_model}")
     print(f"   Announcer Voice:    {voice_persona}")
+    print(f"   Audio Tags:         {format_audio_tag(global_audio_tags)}")
 
     # Determine which voice clips and music track actually require API calls
     to_generate_prompts = []
@@ -482,13 +518,13 @@ def main():
             is_missing = args.force or not (os.path.exists(p_file) and os.path.getsize(p_file) > 0)
             if is_missing:
                 num_voice_to_generate += 1
-                display_text = clip.get("phonetic") or clip.get("spoken_text") or clip.get("text", "")
-                to_generate_prompts.append(f"{prefix}{display_text}")
+                txt = build_intro_clip_announcement(clip, prefix, global_audio_tags)
+                to_generate_prompts.append(txt)
                 if intro_enhancements[idx]:
                     num_enhanced_to_generate += 1
 
         for idx, p in enumerate(roster):
-            fname, txt = build_player_announcement(p, player_template, prefix)
+            fname, txt = build_player_announcement(p, player_template, prefix, global_audio_tags)
             full_p = os.path.join(args.output_dir, fname)
             is_missing = args.force or not (os.path.exists(full_p) and os.path.getsize(full_p) > 0)
             if is_missing:
@@ -531,14 +567,13 @@ def main():
             out_p = os.path.join(args.output_dir, fname)
             is_cached = not args.force and os.path.exists(out_p) and os.path.getsize(out_p) > 0
             cache_tag = " ⏩ [Existing File Cached - Will Skip]" if is_cached else ""
-            display_text = clip.get("phonetic") or clip.get("spoken_text") or clip.get("text", "")
-            txt = f"{prefix}{display_text}"
+            txt = build_intro_clip_announcement(clip, prefix, global_audio_tags)
             enhance_tag = f" 🧠 [LLM Script Enhancement via {llm_model}]" if (intro_enhancements[idx] and not is_cached) else ""
             print(f"📁 {fname} -> \"{txt}\"{enhance_tag}{cache_tag}")
 
         print("\n--- ROSTER CLIPS ---")
         for idx, p in enumerate(roster):
-            fname, txt = build_player_announcement(p, player_template, prefix)
+            fname, txt = build_player_announcement(p, player_template, prefix, global_audio_tags)
             out_p = os.path.join(args.output_dir, fname)
             is_cached = not args.force and os.path.exists(out_p) and os.path.getsize(out_p) > 0
             cache_tag = " ⏩ [Existing File Cached - Will Skip]" if is_cached else ""
@@ -595,15 +630,14 @@ def main():
                 print(f"   ⏩ Skipping existing voice clip: {out_path}")
                 continue
 
-            display_text = clip.get("phonetic") or clip.get("spoken_text") or clip.get("text", "")
-            txt = f"{prefix}{display_text}"
+            txt = build_intro_clip_announcement(clip, prefix, global_audio_tags)
             if intro_enhancements[idx]:
                 print(f"🧠 Enhancing announcer script for '{fname}' via {llm_model}...")
                 txt = enhance_announcer_script(client, txt, llm_model, persona.get("style", "High-energy stadium PA announcer"))
             generate_audio_clip_gemini(client, txt, fname, args.output_dir, tts_model, voice_persona, force=args.force)
 
         for idx, p in enumerate(roster):
-            fname, txt = build_player_announcement(p, player_template, prefix)
+            fname, txt = build_player_announcement(p, player_template, prefix, global_audio_tags)
             out_path = os.path.join(args.output_dir, fname)
             if not args.force and os.path.exists(out_path) and os.path.getsize(out_path) > 0:
                 print(f"   ⏩ Skipping existing voice clip: {out_path}")

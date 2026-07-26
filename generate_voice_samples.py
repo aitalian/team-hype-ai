@@ -24,10 +24,12 @@ from common import (
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_ENHANCE_MODE,
+    DEFAULT_AUDIO_TAGS,
 )
 from generate_gemini_audio import (
     generate_audio_clip_gemini,
     enhance_announcer_script,
+    format_audio_tag,
 )
 
 VOICE_DEFS = load_gemini_voices()
@@ -88,6 +90,7 @@ def main():
     parser.add_argument("--tts-model", default=DEFAULT_TTS_MODEL, help=f"Gemini TTS model (default: {DEFAULT_TTS_MODEL})")
     parser.add_argument("--llm-model", default=DEFAULT_LLM_MODEL, help=f"Gemini LLM model (default: {DEFAULT_LLM_MODEL})")
     parser.add_argument("--voices", default=",".join(PREBUILT_VOICES), help=f"Comma-separated voices to sample (default: {','.join(PREBUILT_VOICES)})")
+    parser.add_argument("--audio-tags", default=DEFAULT_AUDIO_TAGS, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS})")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=DEFAULT_ENHANCE_MODE, help="LLM script enhancement mode (default: auto)")
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically accept cost estimate and bypass confirmation prompt")
     parser.add_argument("--force", action="store_true", help="Force regeneration of existing sample files")
@@ -97,6 +100,7 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
     voice_list = [v.strip() for v in args.voices.split(",") if v.strip()]
+    audio_tag = format_audio_tag(args.audio_tags)
 
     # Filter voices that need generation
     to_generate = []
@@ -109,6 +113,7 @@ def main():
     print(f"   Output Directory: {args.output_dir}")
     print(f"   TTS Model:        {args.tts_model}")
     print(f"   LLM Model:        {args.llm_model}")
+    print(f"   Audio Tags:       {audio_tag}")
     print(f"   Sample Script:    \"{args.sample_text}\"")
 
     if not to_generate and not args.dry_run:
@@ -129,6 +134,8 @@ def main():
         num_enhanced=num_enhanced
     )
 
+    base_sample_text = f"{audio_tag} {args.sample_text}" if audio_tag and not args.sample_text.startswith("[") else args.sample_text
+
     if args.dry_run:
         print("🔍 DRY RUN MODE -- Voice Sample Prompts Preview:")
         for voice in voice_list:
@@ -136,7 +143,7 @@ def main():
             status = " [Will Generate]" if voice in to_generate else " [Existing File Cached]"
             enhance_tag = f" 🧠 [LLM Enhanced via {args.llm_model}]" if should_enhance else ""
             print(f"📁 {os.path.join(args.output_dir, fname)} ({voice}){status}")
-            print(f"   Prompt: \"{DEFAULT_PREFIX}{args.sample_text}\"{enhance_tag}\n")
+            print(f"   Prompt: \"{DEFAULT_PREFIX}{base_sample_text}\"{enhance_tag}\n")
         return
 
     if not args.yes and sys.stdin.isatty():
@@ -172,7 +179,7 @@ def main():
             print(f"   ⏩ Skipping existing voice sample: {out_path}")
             continue
 
-        prompt_text = f"{DEFAULT_PREFIX}{args.sample_text}"
+        prompt_text = f"{DEFAULT_PREFIX}{base_sample_text}"
         if should_enhance:
             print(f"🧠 Enhancing script for '{voice}' via {args.llm_model}...")
             prompt_text = enhance_announcer_script(client, prompt_text, args.llm_model)
