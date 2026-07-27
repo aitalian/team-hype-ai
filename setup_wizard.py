@@ -124,6 +124,9 @@ def main():
         tts_batch_size = int(prompt_string("TTS Batch Size", "10"))
     except ValueError:
         tts_batch_size = 10
+    use_vertexai = prompt_string("Use Google Cloud Vertex AI Platform? (y/N)", "N").lower() in ["y", "yes"]
+    gcp_project = prompt_string("GCP Project ID (optional for Vertex AI)", "") if use_vertexai else ""
+    gcp_location = prompt_string("GCP Region Location", "us-central1") if use_vertexai else "us-central1"
 
     # Step 5: Background Music Prompt
     print("\n--- STEP 5: Stadium Background Music ---")
@@ -182,7 +185,10 @@ def main():
             "enhance_scripts": enhance_mode,
             "batch_script_enhancement": batch_script_enhancement,
             "batch_tts": batch_tts,
-            "tts_batch_size": tts_batch_size
+            "tts_batch_size": tts_batch_size,
+            "use_vertexai": use_vertexai,
+            "gcp_project": gcp_project,
+            "gcp_location": gcp_location
         },
         "announcer_persona": {
             "style": announcer_style,

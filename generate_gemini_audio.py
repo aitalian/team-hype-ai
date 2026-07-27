@@ -103,6 +103,7 @@ from common import (
     get_model_cost_rates,
     log_api_event,
     print_pricing_disclaimer,
+    init_gemini_client,
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_MUSIC_MODEL,
@@ -311,11 +312,12 @@ def build_player_announcement(player, template, prefix="", global_audio_tags="")
     return filename, text_prompt
 
 
-def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced_clips=0, generate_music=True, prompts=None, music_prompt="", music_duration_sec=30, batch_script=True, batch_tts=True, batch_size=10):
+def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced_clips=0, generate_music=True, prompts=None, music_prompt="", music_duration_sec=30, batch_script=True, batch_tts=True, batch_size=10, platform_desc="Google AI Studio", use_vertex=False):
     import math
     print("\n" + "=" * 60)
     print("📊 GEMINI COST-EFFECTIVENESS ESTIMATE & API QUOTA REPORT")
     print("=" * 60)
+    print(f"🌐 Platform Backend:     {platform_desc}")
     
     if prompts:
         voice_input_tokens = sum(max(1, len(p) // 4) for p in prompts)
@@ -328,7 +330,7 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
     if num_enhanced_clips > 0:
         llm_input_tokens = num_enhanced_clips * 120
         llm_output_tokens = num_enhanced_clips * 30
-        llm_rate = get_model_cost_rates(llm_model, category="voice")
+        llm_rate = get_model_cost_rates(llm_model, category="voice", use_vertex=use_vertex, is_batch=batch_script)
         llm_input_cost = (llm_input_tokens / 1_000_000) * llm_rate["input_1m"]
         llm_output_cost = (llm_output_tokens / 1_000_000) * llm_rate["output_1m"]
         llm_cost = llm_input_cost + llm_output_cost
@@ -349,7 +351,7 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
     total_output_tokens = voice_output_tokens + music_output_tokens + llm_output_tokens
 
     if num_clips > 0:
-        tts_rate = get_model_cost_rates(tts_model, category="voice")
+        tts_rate = get_model_cost_rates(tts_model, category="voice", use_vertex=use_vertex, is_batch=batch_tts)
         tts_input_cost = (voice_input_tokens / 1_000_000) * tts_rate["input_1m"]
         tts_output_cost = (voice_output_tokens / 1_000_000) * tts_rate["output_1m"]
         tts_cost = tts_input_cost + tts_output_cost
@@ -357,7 +359,7 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
         tts_cost = 0.0
 
     if generate_music:
-        music_rate = get_model_cost_rates(music_model, category="music")
+        music_rate = get_model_cost_rates(music_model, category="music", use_vertex=use_vertex, is_batch=False)
         music_cost = music_rate["song_request"]
     else:
         music_cost = 0.0
@@ -371,18 +373,26 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
     total_req_count = llm_req_count + tts_req_count + music_req_count
 
     unbatched_req_count = num_enhanced_clips + num_clips + music_req_count
+    saved_req_count = unbatched_req_count - total_req_count
 
-    print("⚡ API Request Quota Efficiency:")
-    print(f"   • Batched LLM Requests:   {llm_req_count} request(s) ({'Batched JSON' if batch_script else '1:1 Legacy'})")
-    print(f"   • Batched TTS Requests:   {tts_req_count} request(s) ({'Batched Slicing' if batch_tts else '1:1 Legacy'}, batch size={batch_size})")
-    if generate_music:
-        print(f"   • Music Request:         {music_req_count} request")
-    print(f"   👉 Total API Requests:    {total_req_count} request(s) (Saved {max(0, unbatched_req_count - total_req_count)} API calls vs unbatched {unbatched_req_count})\n")
-
-    print("🔤 Estimated Input Tokens:")
+    print(f"⚡ API Request Quota Efficiency:")
+    if num_enhanced_clips > 0:
+        script_mode_str = "Batched JSON" if batch_script else "1:1 Requests"
+        print(f"   • Batched LLM Requests:   {llm_req_count} request(s) ({script_mode_str})")
     if num_clips > 0:
-        avg_t = voice_input_tokens / num_clips if num_clips else 0
-        print(f"   • Voice Prompts:       ~{voice_input_tokens:,} input tokens ({num_clips} clips, ~{avg_t:.1f} tokens/clip)")
+        tts_mode_str = f"Batched Slicing, batch size={batch_size}" if batch_tts else "1:1 Requests"
+        print(f"   • Batched TTS Requests:   {tts_req_count} request(s) ({tts_mode_str})")
+    if generate_music:
+        print(f"   • Music Request:         1 request")
+    if saved_req_count > 0:
+        print(f"   👉 Total API Requests:    {total_req_count} request(s) (Saved {saved_req_count} API calls vs unbatched {unbatched_req_count})")
+    else:
+        print(f"   👉 Total API Requests:    {total_req_count} request(s)")
+
+    print("\n🔤 Estimated Input Tokens:")
+    if num_clips > 0:
+        avg_tokens = (voice_input_tokens / num_clips) if num_clips else 0
+        print(f"   • Voice Prompts:       ~{voice_input_tokens:,} input tokens ({num_clips} clips, ~{avg_tokens:.1f} tokens/clip)")
     if num_enhanced_clips > 0:
         print(f"   • Script Synthesizer:  ~{llm_input_tokens:,} input tokens ({num_enhanced_clips} scripts enhanced via {llm_model})")
     if generate_music and music_prompt:
@@ -400,9 +410,11 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
     print("   ℹ️  * Note: Audio tokens correspond to 25 tokens per second of generated audio.\n")
 
     if num_enhanced_clips > 0:
-        print(f"🧠 Script Synthesizer ({num_enhanced_clips} scripts using {llm_model}): ~${llm_cost:.6f} USD")
+        batch_str = " [Batch Rate]" if batch_script else ""
+        print(f"🧠 Script Synthesizer ({num_enhanced_clips} scripts using {llm_model}{batch_str}): ~${llm_cost:.6f} USD")
     if num_clips > 0:
-        print(f"🎙️ Voice Clips ({num_clips} clips using {tts_model}): ~${tts_cost:.6f} USD")
+        platform_str = " [Vertex AI Rate]" if use_vertex else " [AI Studio Rate]"
+        print(f"🎙️ Voice Clips ({num_clips} clips using {tts_model}{platform_str}): ~${tts_cost:.6f} USD")
     if generate_music:
         print(f"🎵 Music Clip (1 song request using {music_model}): ~${music_cost:.4f} USD")
     print(f"------------------------------------------------------------")
@@ -746,6 +758,9 @@ def main():
     parser.add_argument("--no-batch-tts", action="store_false", dest="batch_tts", help="Disable batched TTS generation and fall back to 1:1 API requests")
     parser.add_argument("--batch-size", type=int, default=None, help="Maximum number of voice clips per batched TTS request (default: 10)")
     parser.add_argument("--legacy-mode", action="store_true", help="Shortcut to disable all batching and fall back to legacy 1:1 API execution")
+    parser.add_argument("--vertexai", action="store_true", default=False, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
+    parser.add_argument("--gcp-project", "--project", default=None, help="Google Cloud Project ID for Vertex AI (default: GOOGLE_CLOUD_PROJECT or GCP_PROJECT env var)")
+    parser.add_argument("--gcp-location", "--location", default=None, help="Google Cloud Region for Vertex AI (default: GOOGLE_CLOUD_LOCATION, GCP_LOCATION, or us-central1)")
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically accept cost estimate and bypass confirmation prompt")
     parser.add_argument("--force", action="store_true", help="Force regeneration of existing audio clips")
     parser.add_argument("--dry-run", action="store_true", help="Preview generated prompts and cost estimate without calling Google Cloud Gemini APIs")
@@ -789,6 +804,18 @@ def main():
         if enhance_mode not in ["auto", "always", "never"]:
             enhance_mode = DEFAULT_ENHANCE_MODE
 
+    raw_vertex = args.vertexai or config.get("vertexai", models_cfg.get("vertexai", models_cfg.get("use_vertexai", False)))
+    env_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
+    use_vertex = bool(raw_vertex) or env_vertex
+    gcp_project = args.gcp_project or config.get("gcp_project", models_cfg.get("gcp_project")) or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
+    gcp_location = args.gcp_location or config.get("gcp_location", models_cfg.get("gcp_location")) or os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("GCP_LOCATION", "us-central1")
+
+    if use_vertex:
+        proj_str = f" (Project: {gcp_project}, Region: {gcp_location})" if gcp_project else f" (Region: {gcp_location})"
+        platform_desc = f"Google Cloud Vertex AI{proj_str}"
+    else:
+        platform_desc = "Google AI Studio"
+
     prefix = persona.get("prompt_prefix", "")
     player_template = config.get("player_template", "Number {number}, {name}!")
     roster = config.get("roster", [])
@@ -812,6 +839,7 @@ def main():
             roster_enhancements.append(False)
 
     print("🚀 TeamHypeAI - Sports Audio Generator")
+    print(f"   Platform Backend:   {platform_desc}")
     print(f"   TTS Model:          {tts_model}")
     print(f"   Script Model:       {llm_model} (mode: {enhance_mode})")
     print(f"   Music AI Model:     {music_model}")
@@ -885,7 +913,9 @@ def main():
         music_duration_sec=m_dur,
         batch_script=batch_script,
         batch_tts=batch_tts,
-        batch_size=batch_size
+        batch_size=batch_size,
+        platform_desc=platform_desc,
+        use_vertex=use_vertex
     )
 
     if args.dry_run:
@@ -929,25 +959,17 @@ def main():
             print("\n🛑 Audio generation cancelled by user.")
             sys.exit(0)
 
-    # Strictly Enforce GEMINI_API_KEY requirement
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("\n❌ CRITICAL ERROR: GEMINI_API_KEY environment variable is missing.")
-        print("   This project exclusively uses Google Gemini & Lyria AI models for audio generation.")
-        print("   Please set your key in .env or environment and re-run:")
-        print("     export GEMINI_API_KEY='your_google_gemini_api_key'")
-        print("   Or preview prompts and cost estimates using:")
-        print("     python generate_gemini_audio.py --dry-run\n")
-        sys.exit(1)
+    raw_vertex = args.vertexai or config.get("vertexai", models_cfg.get("vertexai", models_cfg.get("use_vertexai", False)))
+    use_vertex = bool(raw_vertex)
+    gcp_project = args.gcp_project or config.get("gcp_project", models_cfg.get("gcp_project"))
+    gcp_location = args.gcp_location or config.get("gcp_location", models_cfg.get("gcp_location"))
 
-    try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
-        print("🔑 GEMINI API Key detected (sourced from environment / .env). Initializing Google Cloud Gemini client.")
-    except ImportError:
-        print("❌ Error: google-genai library missing.")
-        print("   Please install via: pip install google-genai")
-        sys.exit(1)
+    client = init_gemini_client(
+        api_key=os.environ.get("GEMINI_API_KEY"),
+        use_vertex=use_vertex,
+        project=gcp_project,
+        location=gcp_location
+    )
 
     # 1. Generate Voice Clips via Gemini TTS (with optional LLM Script Enhancement)
     if not args.skip_voice and items_to_process:

@@ -125,25 +125,41 @@ def load_cost_rates(json_path="config/cost_rates.json"):
     return rates
 
 
-def get_model_cost_rates(model_name, category="voice", json_path="config/cost_rates.json"):
+def get_model_cost_rates(model_name, category="voice", json_path="config/cost_rates.json", use_vertex=False, is_batch=False):
     """
-    Retrieves pricing rate estimates for a specified model from config/cost_rates.json.
-    Fails and returns an error if the model or required rates are missing.
+    Retrieves pricing rate estimates for a specified model from config/cost_rates.json,
+    taking into account platform (Google AI Studio vs Vertex AI) and API mode (Standard vs Batch).
     """
-    cost_rates = load_cost_rates(json_path)
+    data = load_json_file(json_path, description="cost rates file")
+
+    platform_key = "vertex_ai" if use_vertex else "ai_studio"
+    mode_key = "batch" if is_batch else "standard"
+
+    cost_rates = None
+    if "platforms" in data and platform_key in data["platforms"]:
+        plat_data = data["platforms"][platform_key]
+        if mode_key in plat_data:
+            cost_rates = plat_data[mode_key]
+
+    if not cost_rates:
+        cost_rates = data.get("rates", {})
 
     if model_name not in cost_rates:
-        if category == "voice":
-            supported = ", ".join([m for m in cost_rates.keys() if "input_1m" in cost_rates[m]])
-            print(f"\n❌ Error: Cost rate estimates for TTS/LLM model '{model_name}' are not configured on file.")
-            print(f"   Supported voice models with rate estimates: {supported}")
+        default_rates = data.get("rates", {})
+        if model_name in default_rates:
+            rates = default_rates[model_name]
         else:
-            supported = ", ".join([m for m in cost_rates.keys() if "song_request" in cost_rates[m]])
-            print(f"\n❌ Error: Cost rate estimates for Music model '{model_name}' are not configured on file.")
-            print(f"   Supported music models with rate estimates: {supported}")
-        sys.exit(1)
-
-    rates = cost_rates[model_name]
+            if category == "voice":
+                supported = ", ".join([m for m in cost_rates.keys() if "input_1m" in cost_rates[m]])
+                print(f"\n❌ Error: Cost rate estimates for TTS/LLM model '{model_name}' are not configured on file.")
+                print(f"   Supported voice models with rate estimates: {supported}")
+            else:
+                supported = ", ".join([m for m in cost_rates.keys() if "song_request" in cost_rates[m]])
+                print(f"\n❌ Error: Cost rate estimates for Music model '{model_name}' are not configured on file.")
+                print(f"   Supported music models with rate estimates: {supported}")
+            sys.exit(1)
+    else:
+        rates = cost_rates[model_name]
 
     if category == "voice":
         if "input_1m" not in rates or "output_1m" not in rates:
@@ -155,4 +171,59 @@ def get_model_cost_rates(model_name, category="voice", json_path="config/cost_ra
             sys.exit(1)
 
     return rates
+
+
+def init_gemini_client(api_key=None, use_vertex=None, project=None, location=None):
+    """
+    Initializes a google.genai.Client instance supporting both Google AI Studio and Vertex AI platforms.
+    
+    Resolution for Vertex AI mode:
+      use_vertex: CLI flag / explicit arg > GOOGLE_GENAI_USE_VERTEXAI env var ('true'/'1') > False
+      project: CLI flag / explicit arg > GOOGLE_CLOUD_PROJECT or GCP_PROJECT env var
+      location: CLI flag / explicit arg > GOOGLE_CLOUD_LOCATION or GCP_LOCATION env var > 'us-central1'
+    """
+    load_dotenv_if_present()
+
+    try:
+        from google import genai
+    except ImportError:
+        print("❌ Error: google-genai library missing.")
+        print("   Please install via: pip install google-genai")
+        sys.exit(1)
+
+    env_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
+    is_vertex = use_vertex if use_vertex is not None else env_vertex
+
+    api_key_val = api_key or os.environ.get("GEMINI_API_KEY")
+
+    if is_vertex:
+        gcp_proj = project or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
+        gcp_loc = location or os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("GCP_LOCATION") or "us-central1"
+
+        client_kwargs = {
+            "vertexai": True,
+            "project": gcp_proj,
+            "location": gcp_loc
+        }
+        if api_key_val:
+            client_kwargs["api_key"] = api_key_val
+
+        auth_desc = "GCP API Key" if api_key_val else "Application Default Credentials (ADC)"
+        print(f"🔑 Google Cloud Vertex AI client initializing (Project: '{gcp_proj or 'ADC/Default'}', Region: '{gcp_loc}', Auth: {auth_desc}).")
+        return genai.Client(**client_kwargs)
+    else:
+        if not api_key_val:
+            print("\n❌ CRITICAL ERROR: GEMINI_API_KEY environment variable is missing.")
+            print("   This project uses Google Gemini & Lyria AI models for audio generation.")
+            print("   Please set your key in .env or environment and re-run:")
+            print("     export GEMINI_API_KEY='your_google_gemini_api_key'")
+            print("   Or enable Vertex AI mode via:")
+            print("     python generate_gemini_audio.py --vertexai --gcp-project YOUR_PROJECT_ID")
+            print("   Or preview prompts and cost estimates using:")
+            print("     python generate_gemini_audio.py --dry-run\n")
+            sys.exit(1)
+
+        print("🔑 GEMINI API Key detected (sourced from environment / .env). Initializing Google AI Studio client.")
+        return genai.Client(api_key=api_key_val)
+
 

@@ -21,6 +21,7 @@ from common import (
     get_model_cost_rates,
     log_api_event,
     print_pricing_disclaimer,
+    init_gemini_client,
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_ENHANCE_MODE,
@@ -38,22 +39,23 @@ DEFAULT_SAMPLE_TEXT = "Welcome to the arena! Ladies and gentlemen, get ready for
 DEFAULT_PREFIX = "Say rapidly with intense, fast-paced stadium PA announcer energy, quick delivery, and high enthusiasm: "
 
 
-def print_sample_cost_report(num_samples, tts_model, llm_model, num_enhanced=0):
+def print_sample_cost_report(num_samples, tts_model, llm_model, num_enhanced=0, platform_desc="Google AI Studio", use_vertex=False):
     print("\n" + "=" * 60)
     print("📊 VOICE SAMPLES GENERATION COST ESTIMATE")
     print("=" * 60)
+    print(f"🌐 Platform Backend:   {platform_desc}")
 
     # 1 sample is ~4 sec audio (~100 tokens), input ~35 tokens
     voice_input_tokens = num_samples * 35
     voice_output_tokens = num_samples * 100
 
-    tts_rate = get_model_cost_rates(tts_model, category="voice")
+    tts_rate = get_model_cost_rates(tts_model, category="voice", use_vertex=use_vertex, is_batch=False)
     tts_cost = ((voice_input_tokens / 1_000_000) * tts_rate["input_1m"]) + ((voice_output_tokens / 1_000_000) * tts_rate["output_1m"])
 
     if num_enhanced > 0:
         llm_input_tokens = num_enhanced * 120
         llm_output_tokens = num_enhanced * 30
-        llm_rate = get_model_cost_rates(llm_model, category="voice")
+        llm_rate = get_model_cost_rates(llm_model, category="voice", use_vertex=use_vertex, is_batch=False)
         llm_cost = ((llm_input_tokens / 1_000_000) * llm_rate["input_1m"]) + ((llm_output_tokens / 1_000_000) * llm_rate["output_1m"])
     else:
         llm_cost = 0.0
@@ -89,9 +91,12 @@ def main():
     parser.add_argument("--sample-text", default=DEFAULT_SAMPLE_TEXT, help=f"Sample announcement text (default: '{DEFAULT_SAMPLE_TEXT}')")
     parser.add_argument("--tts-model", default=DEFAULT_TTS_MODEL, help=f"Gemini TTS model (default: {DEFAULT_TTS_MODEL})")
     parser.add_argument("--llm-model", default=DEFAULT_LLM_MODEL, help=f"Gemini LLM model (default: {DEFAULT_LLM_MODEL})")
-    parser.add_argument("--voices", default=",".join(PREBUILT_VOICES), help=f"Comma-separated voices to sample (default: {','.join(PREBUILT_VOICES)})")
+    parser.add_argument("--voices", default=",".join(PREBUILT_VOICES), help=f"Comma-separated list of voices (default: {','.join(PREBUILT_VOICES)})")
     parser.add_argument("--audio-tags", default=DEFAULT_AUDIO_TAGS, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS})")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=DEFAULT_ENHANCE_MODE, help="LLM script enhancement mode (default: auto)")
+    parser.add_argument("--vertexai", action="store_true", default=False, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
+    parser.add_argument("--gcp-project", "--project", default=None, help="Google Cloud Project ID for Vertex AI (default: GOOGLE_CLOUD_PROJECT or GCP_PROJECT env var)")
+    parser.add_argument("--gcp-location", "--location", default=None, help="Google Cloud Region for Vertex AI (default: GOOGLE_CLOUD_LOCATION, GCP_LOCATION, or us-central1)")
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically accept cost estimate and bypass confirmation prompt")
     parser.add_argument("--force", action="store_true", help="Force regeneration of existing sample files")
     parser.add_argument("--dry-run", action="store_true", help="Preview prompts and cost estimate without calling API")
@@ -102,6 +107,15 @@ def main():
     voice_list = [v.strip() for v in args.voices.split(",") if v.strip()]
     audio_tag = format_audio_tag(args.audio_tags)
 
+    is_vertex = args.vertexai or os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
+    if is_vertex:
+        gcp_proj = args.gcp_project or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
+        gcp_loc = args.gcp_location or os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("GCP_LOCATION") or "us-central1"
+        proj_str = f" (Project: {gcp_proj}, Region: {gcp_loc})" if gcp_proj else f" (Region: {gcp_loc})"
+        platform_desc = f"Google Cloud Vertex AI{proj_str}"
+    else:
+        platform_desc = "Google AI Studio"
+
     # Filter voices that need generation
     to_generate = []
     for voice in voice_list:
@@ -110,6 +124,7 @@ def main():
             to_generate.append(voice)
 
     print("🚀 TeamHypeAI - Announcer Voice Preview Generator")
+    print(f"   Platform Backend: {platform_desc}")
     print(f"   Output Directory: {args.output_dir}")
     print(f"   TTS Model:        {args.tts_model}")
     print(f"   LLM Model:        {args.llm_model}")
@@ -131,7 +146,9 @@ def main():
         num_samples=num_samples,
         tts_model=args.tts_model,
         llm_model=args.llm_model,
-        num_enhanced=num_enhanced
+        num_enhanced=num_enhanced,
+        platform_desc=platform_desc,
+        use_vertex=is_vertex
     )
 
     base_sample_text = f"{audio_tag} {args.sample_text}" if audio_tag and not args.sample_text.startswith("[") else args.sample_text
@@ -156,20 +173,12 @@ def main():
             print("\n🛑 Voice sample generation cancelled by user.")
             sys.exit(0)
 
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("\n❌ CRITICAL ERROR: GEMINI_API_KEY environment variable is missing.")
-        print("   Please set your key in .env or environment and re-run:")
-        print("     export GEMINI_API_KEY='your_google_gemini_api_key'\n")
-        sys.exit(1)
-
-    try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
-        print("🔑 GEMINI API Key detected. Initializing Google Cloud Gemini client.")
-    except ImportError:
-        print("❌ Error: google-genai library missing. Install via: pip install google-genai")
-        sys.exit(1)
+    client = init_gemini_client(
+        api_key=os.environ.get("GEMINI_API_KEY"),
+        use_vertex=args.vertexai,
+        project=args.gcp_project,
+        location=args.gcp_location
+    )
 
     print("\n🎙️ Generating Announcer Voice Samples...")
     for voice in to_generate:

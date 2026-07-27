@@ -7,11 +7,14 @@ An automated Python tool to create professional, stadium-quality audio introduct
 ## 🌟 Features
 
 - **Google Gemini & Lyria AI Audio Stack**: Synthesize rapid-fire stadium announcer voice clips (`gemini-3.1-flash-tts-preview`), AI announcer script polishing (`gemini-3.6-flash`), and entrance music tracks (`lyria-3-clip-preview`, `lyria-3-pro-preview`).
+- **High-Efficiency API Request Batching**: Reduces API calls from ~44 down to **2–3 requests per team run** via batched LLM JSON script enhancement and `pydub.silence` audio slicing, preventing Free Tier quota exhaustion (10 RPM / 100 RPD).
+- **Multi-Platform AI Backend Support**: Seamlessly switch between **Google AI Studio** (`generativelanguage.googleapis.com`) and **Google Cloud Vertex AI** (`vertexai=True`) using GCP API keys or Application Default Credentials (ADC).
+- **Dynamic Rate Limit Retry Delay Parsing**: Automatically extracts exact retry wait durations (e.g. `1h47m9s`) from 429 `RESOURCE_EXHAUSTED` API errors instead of arbitrary sleep times.
 - **Rapid-Fire PA Pacing & Duration Control**: Prompt instructions optimized for quick, high-energy PA delivery, keeping 18+ player intros under 2 minutes.
 - **Google Gemini Audio Tags Support**: Drive expressive speech delivery using Gemini TTS bracketed audio tags (e.g. `[excitedly]`, `[shouting]`, `[excitedly, very fast]`). Configure tags globally or as per-player / per-clip overrides.
 - **Custom Player Intros & Template Variables**: Custom player intro overrides (`custom_intro`) supporting template placeholders (`{name}`, `{number}`, `{phonetic}`, `{phonetic_number}`) for star players or unique announcements.
 - **Detailed API Execution Logging**: Timestamped API execution log (`logs/api_execution.log`) tracking prompts, candidate details, finish reasons, token counts, and error tracebacks with API key redaction.
-- **Interactive First-Time Setup Wizard (`setup_wizard.py`)**: Batteries-included terminal wizard stepping first-time users through team names, announcer personas, models, intro clips, and player rosters.
+- **Interactive First-Time Setup Wizard (`setup_wizard.py`)**: Batteries-included terminal wizard stepping first-time users through team names, announcer personas, models, intro clips, player rosters, and Vertex AI options.
 - **Voice Audition Generator (`generate_voice_samples.py`)**: Synthesizes sample clips for all prebuilt Gemini voice personas (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`) in `samples/` for easy voice auditioning.
 - **DRY Roster Management & `$ROSTER` Macro**: Maintain team rosters, voice personas, and prompts in `roster_templates.json`. Expand rosters dynamically in sequence files using the `$ROSTER` macro.
 - **Drop-in Custom Audio Support**: Seamlessly mix custom music tracks, custom goal horns, or pre-recorded voice clips by placing files with matching filenames in `input/` or `music/`.
@@ -109,7 +112,10 @@ Configure default AI models and script enhancement behavior directly in JSON:
 - `enhance_scripts`: Controls LLM announcer script polishing (`"auto"`, `"always"`, or `"never"`):
   - **`"auto"` (Default)**: Automatically invokes `llm_model` (`gemini-3.6-flash`) ONLY for clips/players that do **not** have manual `phonetic` or `phonetic_number` overrides.
   - **`"always"`**: Forces LLM script enhancement across all items.
-  - **`"never"`**: Disables LLM script enhancement completely.
+- `batch_script_enhancement`: Batches script enhancement requests into a single JSON API call (`true` by default).
+- `batch_tts`: Batches TTS requests and slices audio via `pydub.silence` (`true` by default).
+- `tts_batch_size`: Maximum voice clips per batched TTS request (`10` by default).
+- `use_vertexai`: Optional boolean flag to route requests to Google Cloud Vertex AI infrastructure.
 
 ### 🗣️ Optional Phonetic & Timing Overrides
 Add optional keys to any player entry in `roster_templates.json` to customize pronunciation or fine-tune audio properties on a per-player basis:
@@ -124,7 +130,11 @@ Add optional keys to any player entry in `roster_templates.json` to customize pr
     "tts_model": "gemini-3.1-flash-tts-preview",
     "llm_model": "gemini-3.6-flash",
     "music_model": "lyria-3-clip-preview",
-    "enhance_scripts": "auto"
+    "enhance_scripts": "auto",
+    "batch_script_enhancement": true,
+    "batch_tts": true,
+    "tts_batch_size": 10,
+    "use_vertexai": false
   },
   "announcer_persona": {
     "style": "High-energy championship arena PA announcer",
@@ -208,6 +218,9 @@ Audition sample audio generator for prebuilt Gemini voices:
   --voices VOICES       Comma-separated list of voices (default: Puck,Charon,Kore,Fenrir,Aoede)
   --enhance-scripts MODE
                         LLM script enhancement mode: auto, always, or never (default: auto)
+  --vertexai            Use Google Cloud Vertex AI platform instead of Google AI Studio
+  --gcp-project PROJECT Google Cloud Project ID for Vertex AI
+  --gcp-location REGION Google Cloud Region for Vertex AI (default: us-central1)
   -y, --yes             Automatically accept cost estimate & bypass confirmation prompt
   --force               Force regeneration of existing sample files
   --dry-run             Preview generated prompts & cost estimate
@@ -226,6 +239,15 @@ Generates voice clips and entrance music via Gemini & Lyria APIs:
   --voice VOICE         Prebuilt voice persona (Puck, Charon, Kore, Fenrir, Aoede)
   --enhance-scripts MODE
                         LLM script enhancement mode: auto, always, or never (default: auto)
+  --batch-script / --no-batch-script
+                        Toggle batched LLM script enhancement (default: True)
+  --batch-tts / --no-batch-tts
+                        Toggle batched Gemini TTS generation (default: True)
+  --batch-size N        Maximum voice clips per batched TTS request (default: 10)
+  --legacy-mode         Shortcut to disable all batching and fall back to 1:1 API calls
+  --vertexai            Use Google Cloud Vertex AI platform instead of Google AI Studio
+  --gcp-project PROJECT Google Cloud Project ID for Vertex AI
+  --gcp-location REGION Google Cloud Region for Vertex AI (default: us-central1)
   -y, --yes             Automatically accept cost estimate & bypass confirmation prompt
   --force               Force regeneration of existing audio files
   --dry-run             Preview generated text prompts & cost estimate
@@ -240,6 +262,13 @@ Mixes voice clips, sound effects, and music with dynamic ducking into the final 
   -r, --roster-config CONFIG
                         Path to roster template config JSON (overrides roster_config in run_of_show settings)
   -f, --force           Force re-assembly even if target output file exists
+```
+
+### 5. `update_cost_rates.py`
+Automatically fetches pricing from official Google documentation URLs and updates `config/cost_rates.json`:
+```text
+  -c, --config CONFIG   Path to cost_rates.json (default: config/cost_rates.json)
+  --dry-run             Preview pricing matrix updates without modifying config file
 ```
 
 ---
@@ -268,20 +297,45 @@ The project utilizes specific Google Gemini and Lyria AI models tailored for dis
 
 ---
 
-## 💵 Google Gemini AI Cost Efficiency Breakdown
+## 💵 Multi-Platform Cost Efficiency & Pricing Matrix
 
-Rates are loaded dynamically from `config/cost_rates.json`:
+All CLI tools load rate definitions dynamically from `config/cost_rates.json`, taking into account the active platform (**Google AI Studio** vs **Google Cloud Vertex AI**) and API execution mode (**Standard** vs **Batch**).
 
-| Asset Type | Model | Estimated Quantity | Estimated Input Tokens | Projected Output Tokens | Estimated Cost (Paid Tier) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Voice Clips Synthesis** | `gemini-3.1-flash-tts-preview` | 23 clips (~0.05 min/clip) | ~479 input tokens | ~1,725 output tokens (~1.15 mins) | ~$0.0350 USD |
-| **LLM Script Enhancer** *(Optional/Auto)* | `gemini-3.6-flash` | 18 scripts enhanced | ~2,160 input tokens | ~540 output tokens | ~$0.0073 USD |
-| **Background Music Track** | `lyria-3-clip-preview` | 1 track (30 sec loopable) | ~53 input tokens | ~750 output tokens (30s audio) | ~$0.0400 USD |
-| **Total Full Intro Generation** | | **23 clips + Scripting + Music** | **~2,692 input tokens** | **~3,015 output tokens** | **~$0.0823 USD** |
+### 🔄 How to Update Pricing Rates Automatically
+You can automatically refresh and validate rate definitions from official Google documentation URLs by running:
 
-> **⚠️ Pricing Disclaimer**: Figures listed in the cost breakdown are sample estimates based on average token and duration projections. Actual API rates and billing are subject to change by Google. Review official rates on the [Google Gemini API Pricing Page](https://ai.google.dev/gemini-api/docs/pricing).
->
+```bash
+# Preview live pricing rate changes without writing to disk:
+python3 update_cost_rates.py --dry-run
+
+# Scrape live rates and update config/cost_rates.json:
+python3 update_cost_rates.py
+```
+
+The script parses live rates from:
+- 🔗 **Google AI Studio Pricing**: [https://ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing)
+- 🔗 **Google Cloud Vertex AI Generative AI**: [https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing](https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing)
+- 🔗 **Google Cloud Vertex AI Text-to-Speech**: [https://cloud.google.com/text-to-speech/pricing](https://cloud.google.com/text-to-speech/pricing)
+
+---
+
+### 📊 Full Intro Generation Cost Comparison (Sample 18-Player Team Run)
+
+Below is an estimated cost comparison for generating a complete team intro (23 voice clips, 4 LLM enhanced announcer scripts via `gemini-3.6-flash`, and 1 Lyria entrance music track):
+
+| Execution Platform & Mode | LLM Scripting Rate (`gemini-3.6-flash`) | TTS Voice Rate (`gemini-3.1-flash-tts-preview`) | Music Rate (`lyria-3-clip-preview`) | Sample Total Generation Cost |
+| :--- | :--- | :--- | :--- | :--- |
+| **Google AI Studio (Standard API)** | $1.50 in / $7.50 out | $0.50 in / $10.00 out | $0.0400 / request | **~$0.0770 USD** |
+| **Google AI Studio (Batch API - 50% Off LLM)** | **$0.75 in / $3.75 out** | $0.50 in / $10.00 out | $0.0400 / request | **~$0.0762 USD** |
+| **Google Cloud Vertex AI (Standard API)** | $1.50 in / $7.50 out | $1.00 in / $20.00 out | $0.0400 / request | **~$0.0937 USD** |
+| **Google Cloud Vertex AI (Batch API - 50% Off LLM)** | **$0.75 in / $3.75 out** | $1.00 in / $20.00 out | $0.0400 / request | **~$0.0929 USD** |
+
 > **\* Audio Token Conversion Rate**: Audio output tokens correspond to **25 tokens per second of generated audio** (~1,500 audio tokens per minute).
+
+> [!IMPORTANT]
+> **Platform Quota & Rate Limit Tradeoff**:
+> - **Google AI Studio**: Offers lower per-unit token pricing ($0.50 / $10.00 per 1M tokens for TTS), but is subject to strict API tier caps (**10 RPM / 100 RPD** for preview models). Generating back-to-back intros for multiple teams on AI Studio can trigger rate limit quota resets (`429 RESOURCE_EXHAUSTED`).
+> - **Google Cloud Vertex AI**: Slightly higher TTS unit token pricing ($1.00 / $20.00 per 1M tokens), but **is not subject to AI Studio's 100 RPD daily quota cap**. Vertex AI is backed by Google Cloud enterprise infrastructure, scaling to thousands of RPM with customizable GCP project quotas for multi-team and high-volume production environments.
 
 ---
 
