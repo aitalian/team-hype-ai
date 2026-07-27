@@ -98,6 +98,7 @@ def main():
     parser.add_argument("--llm-model", default=DEFAULT_LLM_MODEL, help=f"Gemini LLM model (default: {DEFAULT_LLM_MODEL})")
     parser.add_argument("--voices", default=",".join(PREBUILT_VOICES), help=f"Comma-separated list of voices (default: {','.join(PREBUILT_VOICES)})")
     parser.add_argument("--audio-tags", default=DEFAULT_AUDIO_TAGS, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS})")
+    parser.add_argument("--theme-context", "--announcer-theme", default=None, help="Optional theme/personality context for script synthesis (e.g. pirate, space commander)")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=DEFAULT_ENHANCE_MODE, help="LLM script enhancement mode (default: auto)")
     parser.add_argument("--vertexai", action="store_true", default=False, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
     parser.add_argument("--gcp-project", "--project", default=None, help="Google Cloud Project ID for Vertex AI (default: GOOGLE_CLOUD_PROJECT or GCP_PROJECT env var)")
@@ -196,7 +197,7 @@ def main():
         prompt_text = f"{DEFAULT_PREFIX}{base_sample_text}"
         if should_enhance:
             print(f"🧠 Enhancing script for '{voice}' via {args.llm_model}...")
-            prompt_text = enhance_announcer_script(client, prompt_text, args.llm_model)
+            prompt_text = enhance_announcer_script(client, prompt_text, args.llm_model, theme_context=args.theme_context or "")
 
         print(f"🎙️ Synthesizing voice sample for '{voice}'...")
         generate_audio_clip_gemini(

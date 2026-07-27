@@ -128,15 +128,18 @@ def format_audio_tag(tag):
     return tag_str
 
 
-def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", max_retries=3):
+def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", max_retries=3):
     """
     Uses LLM (e.g. gemini-3.6-flash) to rewrite and format plain text into rapid-fire, high-energy PA announcer scripts
     with phonetic inflections, concise drawn-out vowels, expressive audio tags (e.g. [excitedly], [shouting]),
     and PA stadium emphasis cues prior to TTS generation.
     """
+    theme_str = f"Theme & Context Instructions: {theme_context}\nIncorporate thematic phrasing, tone accents, vocabulary, or puns matching this theme while keeping speech punchy and stadium-ready.\n\n" if theme_context else ""
+
     prompt = (
         f"You are a professional PA sports announcer script writer. "
         f"Style: {persona_style}.\n\n"
+        f"{theme_str}"
         f"Rewrite the following announcement text into a concise, rapid-fire, high-energy stadium PA script "
         f"for speech synthesis. Keep the delivery fast-paced, quick, and punchy. Use uppercase for strong emphasis, "
         f"drawn-out vowels ONLY for key player names, and clear punctuation to guide rapid pitch and inflection. "
@@ -146,7 +149,7 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
         f"Input: {raw_text}"
     )
     for attempt in range(1, max_retries + 1):
-        log_api_event("LLM_SCRIPT", "REQUEST", {"model": llm_model, "raw_text": raw_text, "style": persona_style, "attempt": attempt})
+        log_api_event("LLM_SCRIPT", "REQUEST", {"model": llm_model, "raw_text": raw_text, "style": persona_style, "theme_context": theme_context, "attempt": attempt})
         try:
             response = client.models.generate_content(
                 model=llm_model,
@@ -173,7 +176,7 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
     return raw_text
 
 
-def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", max_retries=3):
+def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", max_retries=3):
     """
     Uses LLM (e.g. gemini-3.6-flash) in a single API call to rewrite multiple raw scripts in batch into a JSON mapping.
     items_to_enhance: list of dicts [{'id': key, 'raw_text': text}]
@@ -185,8 +188,11 @@ def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona
     prompt_payload = {item['id']: item['raw_text'] for item in items_to_enhance}
     prompt_json_str = json.dumps(prompt_payload, indent=2)
 
+    theme_str = f"Theme & Context Instructions: {theme_context}\nIncorporate thematic phrasing, tone accents, vocabulary, or puns matching this theme while keeping speech punchy and stadium-ready.\n\n" if theme_context else ""
+
     prompt = (
         f"You are a professional PA sports announcer script writer. Style: {persona_style}.\n\n"
+        f"{theme_str}"
         f"Rewrite each announcement text in the input JSON into a concise, rapid-fire, high-energy stadium PA script "
         f"for speech synthesis. Keep delivery fast-paced, quick, and punchy. Use uppercase for strong emphasis, "
         f"drawn-out vowels ONLY for key player names, and clear punctuation. You may include expressive bracketed audio tags "
@@ -756,6 +762,7 @@ def main():
     parser.add_argument("--music-model", default=None, help=f"Google Lyria model (default: {DEFAULT_MUSIC_MODEL} or config models.music_model)")
     parser.add_argument("--voice", default=None, help=f"Prebuilt Gemini voice persona (default: {DEFAULT_VOICE_PERSONA} or config announcer_persona.voice_name)")
     parser.add_argument("--audio-tags", default=None, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS} or config announcer_persona.audio_tags)")
+    parser.add_argument("--theme-context", "--announcer-theme", default=None, help="Optional theme/personality context for script synthesis & voice prompts (e.g. pirate, space commander)")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=None, help=f"LLM script enhancement mode: auto (only clips without manual phonetic overrides), always, or never (default: {DEFAULT_ENHANCE_MODE} or config enhance_scripts)")
     parser.add_argument("--batch-script", action="store_true", default=None, help="Batch LLM script enhancement requests into a single JSON API call (default: True)")
     parser.add_argument("--no-batch-script", action="store_false", dest="batch_script", help="Disable batched LLM script enhancement and fall back to 1:1 API requests")
@@ -843,6 +850,8 @@ def main():
         else:
             roster_enhancements.append(False)
 
+    theme_context = args.theme_context or config.get("theme_context") or persona.get("theme_context") or persona.get("theme") or ""
+
     print("🚀 TeamHypeAI - Sports Audio Generator")
     print(f"   Platform Backend:   {platform_desc}")
     print(f"   TTS Model:          {tts_model}")
@@ -850,6 +859,8 @@ def main():
     print(f"   Music AI Model:     {music_model}")
     print(f"   Announcer Voice:    {voice_persona}")
     print(f"   Audio Tags:         {format_audio_tag(global_audio_tags)}")
+    if theme_context:
+        print(f"   Theme Context:      \"{theme_context}\"")
     print(f"   Batching Mode:      LLM Batch={batch_script}, TTS Batch={batch_tts} (batch_size={batch_size})")
 
     to_generate_prompts = []
@@ -987,7 +998,11 @@ def main():
             if batch_script:
                 print(f"🧠 Batch enhancing {len(items_needing_enh)} announcer script(s) via {llm_model} (1 API call)...")
                 batch_payload = [{"id": item["filename"], "raw_text": item["raw_text"]} for item in items_needing_enh]
-                enhanced_map = batch_enhance_announcer_scripts(client, batch_payload, llm_model, persona.get("style", "High-energy stadium PA announcer"))
+                enhanced_map = batch_enhance_announcer_scripts(
+                    client, batch_payload, llm_model,
+                    persona_style=persona.get("style", "High-energy stadium PA announcer"),
+                    theme_context=theme_context
+                )
 
                 if enhanced_map and isinstance(enhanced_map, dict):
                     for item in items_to_process:
@@ -1000,14 +1015,22 @@ def main():
                     print("   🧠 Executing 1:1 LLM enhancement fallback per item...")
                     for item in items_to_process:
                         if item["needs_enhancement"]:
-                            item["final_text"] = enhance_announcer_script(client, item["raw_text"], llm_model, persona.get("style", "High-energy stadium PA announcer"))
+                            item["final_text"] = enhance_announcer_script(
+                                client, item["raw_text"], llm_model,
+                                persona_style=persona.get("style", "High-energy stadium PA announcer"),
+                                theme_context=theme_context
+                            )
                         else:
                             item["final_text"] = item["raw_text"]
             else:
                 for item in items_to_process:
                     if item["needs_enhancement"]:
                         print(f"🧠 Enhancing announcer script for '{item['filename']}' via {llm_model}...")
-                        item["final_text"] = enhance_announcer_script(client, item["raw_text"], llm_model, persona.get("style", "High-energy stadium PA announcer"))
+                        item["final_text"] = enhance_announcer_script(
+                            client, item["raw_text"], llm_model,
+                            persona_style=persona.get("style", "High-energy stadium PA announcer"),
+                            theme_context=theme_context
+                        )
                     else:
                         item["final_text"] = item["raw_text"]
         else:

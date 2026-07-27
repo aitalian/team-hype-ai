@@ -10,6 +10,7 @@
   },
   "announcer_persona": {
     "style": "High-energy championship arena PA announcer",
+    "theme_context": "",
     "voice_name": "Puck",
     "audio_tags": "[excitedly, fast-paced]",
     "prompt_prefix": "Say rapidly with intense, fast-paced stadium PA announcer energy, quick delivery, and high enthusiasm: "

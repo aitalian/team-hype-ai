@@ -216,6 +216,8 @@ Audition sample audio generator for prebuilt Gemini voices:
   --tts-model MODEL     Gemini TTS model (default: gemini-3.1-flash-tts-preview)
   --llm-model MODEL     Gemini LLM model (default: gemini-3.6-flash)
   --voices VOICES       Comma-separated list of voices (default: Puck,Charon,Kore,Fenrir,Aoede)
+  --theme-context TEXT, --announcer-theme TEXT
+                        Optional theme/personality context for script synthesis (e.g. pirate, space commander)
   --enhance-scripts MODE
                         LLM script enhancement mode: auto, always, or never (default: auto)
   --vertexai            Use Google Cloud Vertex AI platform instead of Google AI Studio
@@ -237,6 +239,8 @@ Generates voice clips and entrance music via Gemini & Lyria APIs:
   --llm-model MODEL     Gemini LLM model (default: gemini-3.6-flash)
   --music-model MODEL   Lyria Music model (default: lyria-3-clip-preview)
   --voice VOICE         Prebuilt voice persona (Puck, Charon, Kore, Fenrir, Aoede)
+  --theme-context TEXT, --announcer-theme TEXT
+                        Optional theme/personality context for script synthesis & voice prompts (e.g. pirate, space commander)
   --enhance-scripts MODE
                         LLM script enhancement mode: auto, always, or never (default: auto)
   --batch-script / --no-batch-script

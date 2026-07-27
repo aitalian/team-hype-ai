@@ -85,6 +85,7 @@ def main():
     team_name = prompt_string("🏆 Enter Team Name", "Eagles")
     team_mascot = prompt_string("📣 Enter Mascot / Slogan", team_name.upper())
     announcer_style = prompt_string("🎙️ Enter PA Announcer Style Persona", "High-energy championship arena PA announcer")
+    announcer_theme = prompt_string("⚓ Optional Announcer Theme / Context (e.g. pirate, space commander, retro rockstar)", "")
 
     # Step 3: Voice Selection
     print("\n--- STEP 3: Announcer Voice Selection ---")
@@ -192,6 +193,7 @@ def main():
         },
         "announcer_persona": {
             "style": announcer_style,
+            "theme_context": announcer_theme,
             "voice_name": voice_name,
             "audio_tags": audio_tags,
             "prompt_prefix": "Say rapidly with intense, fast-paced stadium PA announcer energy, quick delivery, and high enthusiasm: "
