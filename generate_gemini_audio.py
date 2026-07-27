@@ -417,10 +417,15 @@ def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced
         print(f"🎙️ Voice Clips ({num_clips} clips using {tts_model}{platform_str}): ~${tts_cost:.6f} USD")
     if generate_music:
         print(f"🎵 Music Clip (1 song request using {music_model}): ~${music_cost:.4f} USD")
-    print(f"------------------------------------------------------------")
+    print("------------------------------------------------------------")
     print(f"💵 ESTIMATED TOTAL GENERATION COST: ~${total_cost:.5f} USD")
-    print(f"------------------------------------------------------------")
-    print_pricing_disclaimer()
+    print("------------------------------------------------------------")
+    print_pricing_disclaimer(
+        use_vertex=use_vertex,
+        has_tts=(num_clips > 0),
+        has_llm=(num_enhanced_clips > 0),
+        has_music=generate_music
+    )
     print("=" * 60 + "\n")
 
 

@@ -78,7 +78,12 @@ def print_sample_cost_report(num_samples, tts_model, llm_model, num_enhanced=0, 
     print("------------------------------------------------------------")
     print(f"💵 ESTIMATED TOTAL COST: ~${total_cost:.5f} USD")
     print("------------------------------------------------------------")
-    print_pricing_disclaimer()
+    print_pricing_disclaimer(
+        use_vertex=use_vertex,
+        has_tts=(num_samples > 0),
+        has_llm=(num_enhanced > 0),
+        has_music=False
+    )
     print("=" * 60 + "\n")
 
 

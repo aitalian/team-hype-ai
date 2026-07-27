@@ -48,21 +48,40 @@ DEFAULT_VOICE_PERSONA = "Puck"
 DEFAULT_ENHANCE_MODE = "auto"
 DEFAULT_AUDIO_TAGS = "[excitedly, fast-paced]"
 
-PRICING_DISCLAIMER_TEXT = (
-    "⚠️  DISCLAIMER: This figure is only an estimate based on sample\n"
-    "   token and duration projections for expected API calls.\n"
-    "   Actual API rates and billing are subject to change. The onus is on\n"
-    "   the user to validate expected charges on the official Google Gemini API pricing page:\n"
-    "   🔗 https://ai.google.dev/gemini-api/docs/pricing\n"
-    "   ℹ️  * Note: Audio tokens correspond to 25 tokens per second of generated audio."
-)
-
-
-def print_pricing_disclaimer():
+def print_pricing_disclaimer(use_vertex=False, has_tts=True, has_llm=True, has_music=True, json_path="config/cost_rates.json"):
     """
-    Prints a single-sourced DRY cost estimation disclaimer across all CLI outputs.
+    Prints cost estimation disclaimer displaying relevant pricing URLs sourced dynamically from config/cost_rates.json.
     """
-    print(PRICING_DISCLAIMER_TEXT)
+    sources = {
+        "ai_studio": "https://ai.google.dev/gemini-api/docs/pricing",
+        "vertex_ai_generative": "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing",
+        "vertex_ai_tts": "https://cloud.google.com/text-to-speech/pricing"
+    }
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                meta_sources = data.get("_meta", {}).get("sources", {})
+                if isinstance(meta_sources, dict):
+                    sources.update(meta_sources)
+        except Exception:
+            pass
+
+    print("⚠️  DISCLAIMER: This figure is only an estimate based on sample")
+    print("   token and duration projections for expected API calls.")
+    print("   Actual API rates and billing are subject to change. The onus is on")
+    print("   the user to validate expected charges on official Google pricing pages:")
+
+    if use_vertex:
+        if (has_llm or has_music) and "vertex_ai_generative" in sources:
+            print(f"   🔗 Vertex AI Generative AI: {sources['vertex_ai_generative']}")
+        if has_tts and "vertex_ai_tts" in sources:
+            print(f"   🔗 Vertex AI Text-to-Speech: {sources['vertex_ai_tts']}")
+    else:
+        if "ai_studio" in sources:
+            print(f"   🔗 Google AI Studio Pricing: {sources['ai_studio']}")
+
+    print("   ℹ️  * Note: Audio tokens correspond to 25 tokens per second of generated audio.")
 
 
 def load_dotenv_if_present(env_path=".env"):
