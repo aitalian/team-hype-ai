@@ -281,6 +281,7 @@ def sync_platforms_and_rates(config_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Synchronizes the platforms matrix and rates tables dynamically
     from the loaded tracked_models without hardcoding.
+    Respects model availability per platform.
     """
     tracked_models = config_data.get("tracked_models", {})
 
@@ -291,6 +292,15 @@ def sync_platforms_and_rates(config_data: Dict[str, Any]) -> Dict[str, Any]:
     rates_flat = {}
 
     for m_id, meta in tracked_models.items():
+        avail = meta.get("availability", {})
+        if isinstance(avail, dict):
+            ais_avail = bool(avail.get("ai_studio", True))
+            vtx_avail = bool(avail.get("vertex_ai", True))
+        else:
+            channels = meta.get("supported_channels", ["ai_studio"])
+            ais_avail = "ai_studio" in channels
+            vtx_avail = "vertex_ai" in channels
+
         m_rates = meta.get("rates", {})
         ais = m_rates.get("ai_studio", {})
         vtx = m_rates.get("vertex_ai", {})
@@ -300,14 +310,14 @@ def sync_platforms_and_rates(config_data: Dict[str, Any]) -> Dict[str, Any]:
         vtx_std = vtx.get("standard", {})
         vtx_bat = vtx.get("batch", {})
 
-        if ais_std:
+        if ais_avail and ais_std:
             platforms["ai_studio"]["standard"][m_id] = ais_std
             rates_flat[m_id] = ais_std
-        if ais_bat:
+        if ais_avail and ais_bat:
             platforms["ai_studio"]["batch"][m_id] = ais_bat
-        if vtx_std:
+        if vtx_avail and vtx_std:
             platforms["vertex_ai"]["standard"][m_id] = vtx_std
-        if vtx_bat:
+        if vtx_avail and vtx_bat:
             platforms["vertex_ai"]["batch"][m_id] = vtx_bat
 
     config_data["platforms"] = platforms
@@ -325,8 +335,14 @@ def print_comparison_report(comparison: Dict[str, Any], tracked_models: Dict[str
     for m_id, meta in tracked_models.items():
         role = meta.get("role", "general")
         status = meta.get("status", "active")
-        channels = ", ".join(meta.get("supported_channels", ["ai_studio"]))
-        print(f"  • {m_id:<30} [{role:<17}] Status: {status:<7} Channels: ({channels})")
+        avail = meta.get("availability", {})
+        if isinstance(avail, dict):
+            ais_str = "Yes" if avail.get("ai_studio", True) else "No"
+            vtx_str = "Yes" if avail.get("vertex_ai", True) else "No"
+            avail_str = f"AI Studio: {ais_str}, Vertex AI: {vtx_str}"
+        else:
+            avail_str = ", ".join(meta.get("supported_channels", ["ai_studio"]))
+        print(f"  • {m_id:<30} [{role:<17}] Status: {status:<7} Availability: ({avail_str})")
 
     suggestions = comparison.get("suggestions", [])
     print(f"\n💡 VERSION UPGRADE RECOMMENDATIONS ({len(suggestions)}):")

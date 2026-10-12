@@ -106,6 +106,7 @@ Maintain team rosters, announcer voice styles, music prompts, and model choices 
 
 ### 🤖 Model & Script Enhancement Settings (`models` block)
 Configure default AI models and script enhancement behavior directly in JSON:
+- `api_engine`: Model interaction API engine (`"interactions"` [default, June 2026 preferred standard], or `"generate_content"`).
 - `tts_model`: Text-to-Speech voice model (`gemini-3.8-flash-tts`, `gemini-3.5-flash`).
 - `llm_model`: Script synthesizer model (`gemini-3.8-flash`, `gemini-3.5-flash-lite`).
 - `music_model`: Background music model (`lyria-3.5`, `lyria-3-pro-preview`).
@@ -223,6 +224,10 @@ Audition sample audio generator for prebuilt Gemini voices:
                         Regional accent guidance (e.g. "French Canadian")
   --enhance-scripts MODE
                         LLM script enhancement mode: auto, always, or never (default: auto)
+  --legacy-api, --use-generate-content
+                        Use legacy generateContent API instead of the preferred Interactions API
+  --api-engine {interactions,generate_content,auto}
+                        Explicitly choose API engine (default: interactions)
   --vertexai            Use Google Cloud Vertex AI platform instead of Google AI Studio
   --aistudio, --ai-studio, --no-vertexai
                         Force Google AI Studio platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)
@@ -256,6 +261,10 @@ Generates voice clips and entrance music via Gemini & Lyria APIs:
                         Toggle batched Gemini TTS generation (default: True)
   --batch-size N        Maximum voice clips per batched TTS request (default: 10)
   --legacy-mode         Shortcut to disable all batching and fall back to 1:1 API calls
+  --legacy-api, --use-generate-content
+                        Use legacy generateContent API instead of the preferred Interactions API
+  --api-engine {interactions,generate_content,auto}
+                        Explicitly choose API engine (default: interactions)
   --vertexai            Use Google Cloud Vertex AI platform instead of Google AI Studio
   --aistudio, --ai-studio, --no-vertexai
                         Force Google AI Studio platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)

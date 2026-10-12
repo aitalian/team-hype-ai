@@ -31,6 +31,7 @@ from common import (
     clean_spoken_text,
     format_speech_style,
     resolve_platform_backend,
+    resolve_api_engine,
 )
 from generate_gemini_audio import (
     generate_audio_clip_gemini,
@@ -107,6 +108,8 @@ def main():
     parser.add_argument("--theme-context", "--announcer-theme", default=None, help="Optional theme/personality context for script synthesis (e.g. pirate, space commander)")
     parser.add_argument("--regional-accent", "--accent", default=None, help="Optional regional accent guidance (e.g. 'French Canadian')")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=DEFAULT_ENHANCE_MODE, help="LLM script enhancement mode (default: auto)")
+    parser.add_argument("--legacy-api", "--use-generate-content", "--legacy-generate-content", action="store_true", default=False, help="Use legacy generateContent API instead of the preferred Interactions API (June 2026 standard)")
+    parser.add_argument("--api-engine", choices=["interactions", "generate_content", "auto"], default=None, help="Explicitly choose model API engine: 'interactions' (default) or 'generate_content'")
     platform_group = parser.add_mutually_exclusive_group()
     platform_group.add_argument("--vertexai", action="store_true", default=None, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
     platform_group.add_argument("--aistudio", "--ai-studio", "--no-vertexai", action="store_true", default=None, help="Force Google AI Studio backend platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)")
@@ -136,6 +139,12 @@ def main():
         gcp_location=args.gcp_location
     )
 
+    api_engine, api_engine_desc = resolve_api_engine(
+        cli_legacy_api=args.legacy_api,
+        cli_api_engine=args.api_engine,
+        use_vertex=is_vertex
+    )
+
     # Filter voices that need generation
     to_generate = []
     for voice in voice_list:
@@ -145,6 +154,7 @@ def main():
 
     print("🚀 TeamHypeAI - Announcer Voice Preview Generator")
     print(f"   Platform Backend: {platform_desc}")
+    print(f"   API Engine:       {api_engine_desc}")
     print(f"   Output Directory: {args.output_dir}")
     print(f"   TTS Model:        {args.tts_model}")
     print(f"   LLM Model:        {args.llm_model}")
@@ -228,7 +238,8 @@ def main():
                 theme_context=args.theme_context or "",
                 delivery_instructions=DEFAULT_PREFIX,
                 audio_tag=audio_tag,
-                regional_accent=regional_accent
+                regional_accent=regional_accent,
+                api_engine=api_engine
             )
         else:
             prompt_text = clean_sample_text
@@ -242,7 +253,8 @@ def main():
             model_name=args.tts_model,
             voice_name=voice,
             style=audio_tag or DEFAULT_AUDIO_TAGS,
-            force=args.force
+            force=args.force,
+            api_engine=api_engine
         )
 
     print(f"\n✅ All announcer voice samples generated in '{args.output_dir}/'!")

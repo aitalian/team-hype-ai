@@ -133,8 +133,8 @@ def main():
     except ValueError:
         tts_batch_size = 10
     print("\nBackend AI Platform:")
-    print("  [1] Google AI Studio (Default - uses GEMINI_API_KEY)")
-    print("  [2] Google Cloud Vertex AI (Enterprise quotas - uses GCP project)")
+    print("  [1] Google AI Studio (Default - required for lyria-3.5 stadium music; uses GEMINI_API_KEY)")
+    print("  [2] Google Cloud Vertex AI (Enterprise quotas - supports lyria-3-clip/pro-preview; uses GCP project)")
     plat_choice = prompt_string("Select Backend Platform [1/2]", "1").strip()
     use_vertexai = plat_choice in ["2", "vertex", "vertexai"]
     gcp_project = prompt_string("GCP Project ID (optional for Vertex AI)", "") if use_vertexai else ""
@@ -191,6 +191,7 @@ def main():
     # Step 8: Build and Write JSON Files
     roster_config = {
         "models": {
+            "api_engine": "interactions",
             "tts_model": tts_model,
             "llm_model": llm_model,
             "music_model": music_model,

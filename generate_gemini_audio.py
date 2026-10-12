@@ -106,6 +106,9 @@ from common import (
     init_gemini_client,
     check_model_status,
     warn_if_inactive_models,
+    get_model_availability,
+    is_model_available_on_platform,
+    get_available_models_for_role,
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_MUSIC_MODEL,
@@ -117,6 +120,12 @@ from common import (
     format_speech_style,
     build_speech_part,
     resolve_platform_backend,
+    API_ENGINE_INTERACTIONS,
+    API_ENGINE_LEGACY,
+    DEFAULT_API_ENGINE,
+    resolve_api_engine,
+    extract_audio_bytes_from_interaction,
+    format_error_brief,
 )
 
 
@@ -130,10 +139,11 @@ def format_audio_tag(tag):
     return clean_style_directive(str(tag).strip())
 
 
-def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", audio_tag="", regional_accent="", accent_guidance="", max_retries=3):
+def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", audio_tag="", regional_accent="", accent_guidance="", max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True):
     """
     Uses LLM (e.g. gemini-3.8-flash) to rewrite and format plain text into rapid-fire, high-energy PA announcer scripts
     with phonetic inflections, concise drawn-out vowels, and PA stadium emphasis cues prior to TTS generation.
+    Supports Google Interactions API (June 2026 standard) and legacy generateContent API with automatic fallback.
     Observes delivery instructions, regional accent guidance, and audio tags for tone, but strictly outputs clean speech text without tags or prompt prefixes.
     """
     delivery_str = f"Delivery & Cadence Instructions: {delivery_instructions}\n" if delivery_instructions else ""
@@ -159,18 +169,39 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
         f"Input Text: {clean_spoken_text(raw_text, allow_vocal_tags=True)}"
     )
     for attempt in range(1, max_retries + 1):
-        log_api_event("LLM_SCRIPT", "REQUEST", {"model": llm_model, "raw_text": raw_text, "style": persona_style, "theme_context": theme_context, "attempt": attempt})
+        log_api_event("LLM_SCRIPT", "REQUEST", {"model": llm_model, "raw_text": raw_text, "style": persona_style, "theme_context": theme_context, "attempt": attempt, "engine": api_engine})
         try:
-            response = client.models.generate_content(
-                model=llm_model,
-                contents=prompt
-            )
-            enhanced = response.text.strip().strip('"\'')
+            enhanced = ""
+            if api_engine == API_ENGINE_INTERACTIONS:
+                try:
+                    interaction = client.interactions.create(
+                        model=llm_model,
+                        input=prompt
+                    )
+                    enhanced = (getattr(interaction, "output_text", None) or "").strip().strip('"\'')
+                except Exception as int_err:
+                    if allow_fallback and not ("429" in str(int_err) or "RESOURCE_EXHAUSTED" in str(int_err)):
+                        log_api_event("LLM_SCRIPT", "FALLBACK_TO_GENERATE_CONTENT", {"error": format_error_brief(int_err)})
+                        response = client.models.generate_content(
+                            model=llm_model,
+                            contents=prompt
+                        )
+                        enhanced = (getattr(response, "text", "") or "").strip().strip('"\'')
+                    else:
+                        raise
+            else:
+                response = client.models.generate_content(
+                    model=llm_model,
+                    contents=prompt
+                )
+                enhanced = (getattr(response, "text", "") or "").strip().strip('"\'')
+
             final_script = clean_spoken_text(enhanced, allow_vocal_tags=True) if enhanced else clean_spoken_text(raw_text, allow_vocal_tags=True)
-            log_api_event("LLM_SCRIPT", "SUCCESS", {"model": llm_model, "enhanced_text": final_script})
+            log_api_event("LLM_SCRIPT", "SUCCESS", {"model": llm_model, "enhanced_text": final_script, "engine": api_engine})
             return final_script
         except Exception as e:
-            log_api_event("LLM_SCRIPT", "ERROR", {"model": llm_model, "attempt": attempt, "error": str(e)})
+            brief_err = format_error_brief(e)
+            log_api_event("LLM_SCRIPT", "ERROR", {"model": llm_model, "attempt": attempt, "error": brief_err})
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                 wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
                 dur_fmt = format_duration_human(wait_sec)
@@ -180,15 +211,16 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
                 if attempt < max_retries:
                     time.sleep(5)
                 else:
-                    print(f"   ⚠️ LLM Script Enhancement notice ({llm_model}): {e}. Using base prompt.")
+                    print(f"   ⚠️ LLM Script Enhancement notice ({llm_model}): {brief_err}. Using base prompt.")
                     return clean_spoken_text(raw_text, allow_vocal_tags=True)
 
     return clean_spoken_text(raw_text, allow_vocal_tags=True)
 
 
-def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", regional_accent="", accent_guidance="", max_retries=3):
+def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", regional_accent="", accent_guidance="", max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True):
     """
     Uses LLM (e.g. gemini-3.8-flash) in a single API call to rewrite multiple raw scripts in batch into a JSON mapping.
+    Supports Google Interactions API (June 2026 standard) and legacy generateContent API with automatic fallback.
     items_to_enhance: list of dicts [{'id': key, 'raw_text': text, 'audio_tag': tag}]
     Returns: dict mapping item id -> clean enhanced text string, or None if fallback is required
     """
@@ -227,17 +259,41 @@ def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona
     )
 
     for attempt in range(1, max_retries + 1):
-        log_api_event("LLM_SCRIPT_BATCH", "REQUEST", {"model": llm_model, "count": len(items_to_enhance), "style": persona_style, "attempt": attempt})
+        log_api_event("LLM_SCRIPT_BATCH", "REQUEST", {"model": llm_model, "count": len(items_to_enhance), "style": persona_style, "attempt": attempt, "engine": api_engine})
         try:
             from google.genai import types
-            response = client.models.generate_content(
-                model=llm_model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
+            raw_resp = ""
+            if api_engine == API_ENGINE_INTERACTIONS:
+                try:
+                    interaction = client.interactions.create(
+                        model=llm_model,
+                        input=prompt,
+                        response_format={"type": "json_object"}
+                    )
+                    raw_resp = (getattr(interaction, "output_text", None) or "").strip()
+                except Exception as int_err:
+                    if allow_fallback and not ("429" in str(int_err) or "RESOURCE_EXHAUSTED" in str(int_err)):
+                        log_api_event("LLM_SCRIPT_BATCH", "FALLBACK_TO_GENERATE_CONTENT", {"error": format_error_brief(int_err)})
+                        response = client.models.generate_content(
+                            model=llm_model,
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json"
+                            )
+                        )
+                        raw_resp = (getattr(response, "text", "") or "").strip()
+                    else:
+                        raise
+            else:
+                response = client.models.generate_content(
+                    model=llm_model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json"
+                    )
                 )
-            )
-            raw_resp = response.text.strip()
+                raw_resp = (getattr(response, "text", "") or "").strip()
+
             if raw_resp.startswith("```"):
                 lines = raw_resp.splitlines()
                 if lines[0].startswith("```"):
@@ -249,10 +305,11 @@ def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona
             enhanced_map = json.loads(raw_resp)
             # Ensure every output string in map is strictly sanitized
             cleaned_map = {k: clean_spoken_text(v) for k, v in enhanced_map.items()}
-            log_api_event("LLM_SCRIPT_BATCH", "SUCCESS", {"model": llm_model, "count": len(cleaned_map)})
+            log_api_event("LLM_SCRIPT_BATCH", "SUCCESS", {"model": llm_model, "count": len(cleaned_map), "engine": api_engine})
             return cleaned_map
         except Exception as e:
-            log_api_event("LLM_SCRIPT_BATCH", "ERROR", {"model": llm_model, "attempt": attempt, "error": str(e)})
+            brief_err = format_error_brief(e)
+            log_api_event("LLM_SCRIPT_BATCH", "ERROR", {"model": llm_model, "attempt": attempt, "error": brief_err})
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                 wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
                 dur_fmt = format_duration_human(wait_sec)
@@ -262,7 +319,7 @@ def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona
                 if attempt < max_retries:
                     time.sleep(5)
                 else:
-                    print(f"   ⚠️ Batched LLM Script Enhancement notice ({llm_model}): {e}. Falling back to 1:1 script enhancement.")
+                    print(f"   ⚠️ Batched LLM Script Enhancement notice ({llm_model}): {brief_err}. Falling back to 1:1 script enhancement.")
                     return None
 
     return None
@@ -475,9 +532,10 @@ def save_audio_bytes(audio_bytes, mime_type, out_path):
             wav_file.writeframes(audio_bytes)
 
 
-def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, voice_name="Puck", style="", force=False, max_retries=3):
+def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, voice_name="Puck", style="", force=False, max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True):
     """
     Generates high-energy announcer voice audio using Google GenAI SDK with rate-limit retries.
+    Supports Google Interactions API (June 2026 standard) and legacy generateContent API with automatic fallback.
     Uses native types.SpeechMetadata(speaker=voice_name, style=style) for Gemini 3.8 Flash TTS.
     """
     out_path = os.path.join(output_dir, filename)
@@ -500,47 +558,81 @@ def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, v
             "voice": voice_name,
             "style": style,
             "attempt": attempt,
-            "text": clean_text
+            "text": clean_text,
+            "engine": api_engine
         })
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=[part],
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+            audio_data = None
+            mime_type = "audio/wav"
+
+            if api_engine == API_ENGINE_INTERACTIONS:
+                try:
+                    interaction = client.interactions.create(
+                        model=model_name,
+                        input=clean_text,
+                        response_format={"type": "audio"},
+                        generation_config={"speech_config": [{"voice": voice_name}]}
+                    )
+                    audio_data, mime_type = extract_audio_bytes_from_interaction(interaction)
+                except Exception as int_err:
+                    if allow_fallback and not ("429" in str(int_err) or "RESOURCE_EXHAUSTED" in str(int_err)):
+                        log_api_event("VOICE_TTS", "FALLBACK_TO_GENERATE_CONTENT", {"filename": filename, "error": format_error_brief(int_err)})
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=[part],
+                            config=types.GenerateContentConfig(
+                                response_modalities=["AUDIO"],
+                                speech_config=types.SpeechConfig(
+                                    voice_config=types.VoiceConfig(
+                                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+                                    )
+                                )
+                            )
+                        )
+                        if response and getattr(response, "candidates", None):
+                            candidate = response.candidates[0]
+                            if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                                for p in candidate.content.parts:
+                                    if hasattr(p, "inline_data") and p.inline_data:
+                                        audio_data = p.inline_data.data
+                                        mime_type = getattr(p.inline_data, "mime_type", "audio/wav")
+                                        break
+                    else:
+                        raise
+            else:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[part],
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+                            )
                         )
                     )
                 )
-            )
-            
-            audio_data = None
-            mime_type = "audio/wav"
-            if response and getattr(response, "candidates", None):
-                candidate = response.candidates[0]
-                if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
-                    for p in candidate.content.parts:
-                        if hasattr(p, "inline_data") and p.inline_data:
-                            audio_data = p.inline_data.data
-                            mime_type = getattr(p.inline_data, "mime_type", "audio/wav")
-                            break
+                if response and getattr(response, "candidates", None):
+                    candidate = response.candidates[0]
+                    if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                        for p in candidate.content.parts:
+                            if hasattr(p, "inline_data") and p.inline_data:
+                                audio_data = p.inline_data.data
+                                mime_type = getattr(p.inline_data, "mime_type", "audio/wav")
+                                break
 
             if audio_data:
                 save_audio_bytes(audio_data, mime_type, out_path)
-                log_api_event("VOICE_TTS", "SUCCESS", {"filename": filename, "model": model_name, "voice": voice_name, "mime_type": mime_type, "bytes": len(audio_data)})
+                log_api_event("VOICE_TTS", "SUCCESS", {"filename": filename, "model": model_name, "voice": voice_name, "mime_type": mime_type, "bytes": len(audio_data), "engine": api_engine})
                 print(f"   ✅ Gemini Voice Saved ({mime_type}): {out_path}")
                 time.sleep(6)
                 return True
             else:
-                finish_reason = "UNKNOWN"
-                if response and getattr(response, "candidates", None) and response.candidates:
-                    finish_reason = getattr(response.candidates[0], "finish_reason", "UNKNOWN")
-                raise RuntimeError(f"No audio data returned by Gemini API for '{filename}' (finish_reason: {finish_reason})")
+                raise RuntimeError(f"No audio data returned by Gemini API for '{filename}'")
 
         except APIError as e:
-            log_api_event("VOICE_TTS", "API_ERROR", {"filename": filename, "attempt": attempt, "error": str(e)})
+            brief_err = format_error_brief(e)
+            log_api_event("VOICE_TTS", "API_ERROR", {"filename": filename, "attempt": attempt, "error": brief_err})
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                 wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
                 dur_fmt = format_duration_human(wait_sec)
@@ -548,27 +640,29 @@ def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, v
                 time.sleep(wait_sec)
             else:
                 if attempt < max_retries:
-                    print(f"   ⚠️ Retrying API call for '{filename}' (attempt {attempt}/{max_retries}) due to: {e}")
+                    print(f"   ⚠️ Retrying API call for '{filename}' (attempt {attempt}/{max_retries}) due to: {brief_err}")
                     time.sleep(5)
                 else:
-                    print(f"   ❌ API Error generating '{filename}': {e}")
+                    print(f"   ❌ API Error generating '{filename}': {brief_err}")
                     raise
         except Exception as e:
-            log_api_event("VOICE_TTS", "ERROR", {"filename": filename, "attempt": attempt, "error": str(e)})
+            brief_err = format_error_brief(e)
+            log_api_event("VOICE_TTS", "ERROR", {"filename": filename, "attempt": attempt, "error": brief_err})
             if attempt < max_retries:
-                print(f"   ⚠️ Retrying generation for '{filename}' (attempt {attempt}/{max_retries}) due to: {e}")
+                print(f"   ⚠️ Retrying generation for '{filename}' (attempt {attempt}/{max_retries}) due to: {brief_err}")
                 time.sleep(5)
             else:
-                print(f"   ❌ Error generating '{filename}': {e}")
+                print(f"   ❌ Error generating '{filename}': {brief_err}")
                 raise
 
     return False
 
 
-def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voice_name="Puck", batch_style="", max_retries=3):
+def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voice_name="Puck", batch_style="", max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True):
     """
     Generates high-energy announcer voice audio for a batch of clips in a single Gemini TTS API request,
     then uses pydub.silence.split_on_silence to slice the generated audio into individual WAV files.
+    Supports Google Interactions API (June 2026 standard) and legacy generateContent API with automatic fallback.
 
     batch_items: list of dicts [{'filename': fname, 'text': text, 'style': style}]
     Returns: bool (True if batch succeeded and all files sliced cleanly, False if fallback is required)
@@ -600,32 +694,68 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
             "model": model_name,
             "voice": voice_name,
             "style": batch_style,
-            "attempt": attempt
+            "attempt": attempt,
+            "engine": api_engine
         })
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=[part],
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+            audio_data = None
+            mime_type = "audio/wav"
+
+            if api_engine == API_ENGINE_INTERACTIONS:
+                try:
+                    interaction = client.interactions.create(
+                        model=model_name,
+                        input=combined_text,
+                        response_format={"type": "audio"},
+                        generation_config={"speech_config": [{"voice": voice_name}]}
+                    )
+                    audio_data, mime_type = extract_audio_bytes_from_interaction(interaction)
+                except Exception as int_err:
+                    if allow_fallback and not ("429" in str(int_err) or "RESOURCE_EXHAUSTED" in str(int_err)):
+                        log_api_event("VOICE_TTS_BATCH", "FALLBACK_TO_GENERATE_CONTENT", {"error": format_error_brief(int_err)})
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=[part],
+                            config=types.GenerateContentConfig(
+                                response_modalities=["AUDIO"],
+                                speech_config=types.SpeechConfig(
+                                    voice_config=types.VoiceConfig(
+                                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+                                    )
+                                )
+                            )
+                        )
+                        if response and getattr(response, "candidates", None):
+                            candidate = response.candidates[0]
+                            if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                                for p in candidate.content.parts:
+                                    if hasattr(p, "inline_data") and p.inline_data:
+                                        audio_data = p.inline_data.data
+                                        mime_type = getattr(p.inline_data, "mime_type", "audio/wav")
+                                        break
+                    else:
+                        raise
+            else:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[part],
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+                            )
                         )
                     )
                 )
-            )
-
-            audio_data = None
-            mime_type = "audio/wav"
-            if response and getattr(response, "candidates", None):
-                candidate = response.candidates[0]
-                if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
-                    for part in candidate.content.parts:
-                        if hasattr(part, "inline_data") and part.inline_data:
-                            audio_data = part.inline_data.data
-                            mime_type = getattr(part.inline_data, "mime_type", "audio/wav")
-                            break
+                if response and getattr(response, "candidates", None):
+                    candidate = response.candidates[0]
+                    if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                        for p in candidate.content.parts:
+                            if hasattr(p, "inline_data") and p.inline_data:
+                                audio_data = p.inline_data.data
+                                mime_type = getattr(p.inline_data, "mime_type", "audio/wav")
+                                break
 
             if audio_data:
                 save_audio_bytes(audio_data, mime_type, temp_batch_path)
@@ -674,7 +804,8 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
                 raise RuntimeError(f"No audio data returned by Gemini API for batch (finish_reason: {finish_reason})")
 
         except APIError as e:
-            log_api_event("VOICE_TTS_BATCH", "API_ERROR", {"attempt": attempt, "error": str(e)})
+            brief_err = format_error_brief(e)
+            log_api_event("VOICE_TTS_BATCH", "API_ERROR", {"attempt": attempt, "error": brief_err})
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
                 wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
                 dur_fmt = format_duration_human(wait_sec)
@@ -682,27 +813,30 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
                 time.sleep(wait_sec)
             else:
                 if attempt < max_retries:
-                    print(f"   ⚠️ Retrying batch API call (attempt {attempt}/{max_retries}) due to: {e}")
+                    print(f"   ⚠️ Retrying batch API call (attempt {attempt}/{max_retries}) due to: {brief_err}")
                     time.sleep(5)
                 else:
-                    print(f"   ❌ Batch TTS Error: {e}. Falling back to 1:1 generation.")
+                    print(f"   ❌ Batch TTS Error: {brief_err}. Falling back to 1:1 generation.")
                     return False
         except Exception as e:
-            log_api_event("VOICE_TTS_BATCH", "ERROR", {"attempt": attempt, "error": str(e)})
+            brief_err = format_error_brief(e)
+            log_api_event("VOICE_TTS_BATCH", "ERROR", {"attempt": attempt, "error": brief_err})
             if attempt < max_retries:
-                print(f"   ⚠️ Retrying batch generation (attempt {attempt}/{max_retries}) due to: {e}")
+                print(f"   ⚠️ Retrying batch generation (attempt {attempt}/{max_retries}) due to: {brief_err}")
                 time.sleep(5)
             else:
-                print(f"   ❌ Batch TTS Error: {e}. Falling back to 1:1 generation.")
+                print(f"   ❌ Batch TTS Error: {brief_err}. Falling back to 1:1 generation.")
                 return False
 
     return False
 
 
-def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, duration_sec=30, force=False, max_retries=3):
-
+def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, duration_sec=30, force=False, max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True, use_vertex=False):
     """
     Generates background music track exclusively using Google Lyria AI music models.
+    Supports both Google Interactions API (client.interactions.create, June 2026 standard)
+    and legacy generateContent API (client.models.generate_content) with automatic fallback.
+    Strictly uses the selected Lyria model without model substitution.
     """
     out_path = os.path.join(music_dir, filename)
     duration_sec = min(duration_sec, 120)
@@ -711,72 +845,204 @@ def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, d
         print(f"   ⏩ Skipping existing music track: {out_path}")
         return True
 
-    print(f"🎵 Generating 30s loopable background music track using Google Lyria model '{model_name}'...")
+    avail = get_model_availability(model_name)
+    if use_vertex and not avail.get("vertex_ai", True):
+        print(f"🎵 Generating 30s loopable background music track using Google Lyria model '{model_name}'...")
+        print(f"   Prompt: '{prompt}'")
+        print(f"   ⚠️ Lyria Music notice: Model '{model_name}' is not available on Google Cloud Vertex AI (exclusive to Google AI Studio).")
+        vtx_alts = get_available_models_for_role("music_generator", platform="vertex_ai")
+        alts_str = ", ".join([f"--music-model {m}" for m in vtx_alts]) if vtx_alts else "--music-model lyria-3-clip-preview, lyria-3-pro-preview, or lyria-002"
+        print(f"      Tip: To generate music on Vertex AI, specify an available Vertex Model Garden model (e.g. {alts_str}), or omit --vertexai to auto-route to Google AI Studio.")
+        print(f"      Continuing show generation without auto-generated music. You can place an audio file at '{out_path}'.")
+        return False
+    elif not use_vertex and not avail.get("ai_studio", True):
+        print(f"🎵 Generating 30s loopable background music track using Google Lyria model '{model_name}'...")
+        print(f"   Prompt: '{prompt}'")
+        print(f"   ⚠️ Lyria Music notice: Model '{model_name}' is not available on Google AI Studio (exclusive to Vertex AI Model Garden).")
+        ais_alts = get_available_models_for_role("music_generator", platform="ai_studio")
+        alts_str = ", ".join([f"--music-model {m}" for m in ais_alts]) if ais_alts else "--music-model lyria-3.5"
+        print(f"      Tip: To generate music on Google AI Studio, specify an available model (e.g. {alts_str}), or pass --vertexai.")
+        print(f"      Continuing show generation without auto-generated music. You can place an audio file at '{out_path}'.")
+        return False
+
+    engine_label = "Interactions API" if api_engine == API_ENGINE_INTERACTIONS else "generateContent API"
+    print(f"🎵 Generating 30s loopable background music track using Google Lyria model '{model_name}' [{engine_label}]...")
     print(f"   Prompt: '{prompt}'")
 
     from google.genai import types
     from google.genai.errors import APIError
 
+    input_text = (
+        f"Instrumental stadium entrance background music track ({duration_sec} seconds, loopable, high-energy, "
+        f"strictly NO vocals, NO singing, NO speech, NO lyrics): {prompt}"
+    )
+
     for attempt in range(1, max_retries + 1):
-        log_api_event("LYRIA_MUSIC", "REQUEST", {"filename": filename, "model": model_name, "duration_sec": duration_sec, "attempt": attempt, "prompt": prompt})
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=f"Generate seamless loopable 30-second stadium entrance background music track ({duration_sec} seconds max): {prompt}",
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"]
+        log_api_event("LYRIA_MUSIC", "REQUEST", {
+            "filename": filename,
+            "model": model_name,
+            "duration_sec": duration_sec,
+            "attempt": attempt,
+            "engine": api_engine,
+            "prompt": prompt
+        })
+
+        if api_engine == API_ENGINE_INTERACTIONS:
+            try:
+                interaction = client.interactions.create(
+                    model=model_name,
+                    input=input_text,
+                    response_modalities=["audio"]
                 )
-            )
+                audio_data, mime_type = extract_audio_bytes_from_interaction(interaction)
 
-            audio_data = None
-            mime_type = "audio/mp3"
-            if response and getattr(response, "candidates", None):
-                candidate = response.candidates[0]
-                if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
-                    for part in candidate.content.parts:
-                        if hasattr(part, "inline_data") and part.inline_data:
-                            audio_data = part.inline_data.data
-                            mime_type = getattr(part.inline_data, "mime_type", "audio/mp3")
-                            break
-
-            if audio_data:
-                save_audio_bytes(audio_data, mime_type, out_path)
-                log_api_event("LYRIA_MUSIC", "SUCCESS", {"filename": filename, "model": model_name, "mime_type": mime_type, "bytes": len(audio_data)})
-                print(f"   ✅ Lyria Music Track Saved ({mime_type}): {out_path}")
-                time.sleep(6)
-                return True
-            else:
-                finish_reason = "UNKNOWN"
-                if response and getattr(response, "candidates", None) and response.candidates:
-                    finish_reason = getattr(response.candidates[0], "finish_reason", "UNKNOWN")
-                raise RuntimeError(f"No audio data returned by Lyria API for '{filename}' (finish_reason: {finish_reason})")
-
-        except APIError as e:
-            log_api_event("LYRIA_MUSIC", "API_ERROR", {"filename": filename, "attempt": attempt, "error": str(e)})
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
-                dur_fmt = format_duration_human(wait_sec)
-                print(f"   ⏳ Rate limit hit (429). Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset (attempt {attempt}/{max_retries})...")
-                time.sleep(wait_sec)
-            elif any(kw in str(e).upper() for kw in ["404", "NOT_FOUND", "PERMISSION_DENIED"]):
-                print(f"   ⚠️ Lyria Music notice: Model '{model_name}' is unavailable on this platform/project ({e}).")
-                print(f"      Continuing show generation without auto-generated music. You can place an audio file at '{out_path}'.")
-                return False
-            else:
+                if audio_data:
+                    save_audio_bytes(audio_data, mime_type, out_path)
+                    log_api_event("LYRIA_MUSIC", "SUCCESS", {
+                        "filename": filename,
+                        "model": model_name,
+                        "engine": "interactions",
+                        "mime_type": mime_type,
+                        "bytes": len(audio_data)
+                    })
+                    print(f"   ✅ Lyria Music Track Saved ({mime_type}) via Interactions API: {out_path}")
+                    time.sleep(6)
+                    return True
+                else:
+                    if allow_fallback:
+                        print("   ⚠️ Interactions API returned no audio payload. Attempting fallback to legacy generateContent...")
+                        return generate_music_clip_lyria(
+                            client, prompt, filename, music_dir, model_name,
+                            duration_sec=duration_sec, force=force, max_retries=max_retries,
+                            api_engine=API_ENGINE_LEGACY, allow_fallback=False, use_vertex=use_vertex
+                        )
+                    raise RuntimeError(f"No audio data returned by Interactions API for '{filename}'")
+            except Exception as e:
+                brief_err = format_error_brief(e)
+                log_api_event("LYRIA_MUSIC", "INTERACTIONS_ERROR", {"attempt": attempt, "error": brief_err})
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
+                    dur_fmt = format_duration_human(wait_sec)
+                    print(f"   ⏳ Rate limit hit (429). Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset (attempt {attempt}/{max_retries})...")
+                    time.sleep(wait_sec)
+                    continue
+                if allow_fallback:
+                    print(f"   ⚠️ Interactions API call failed ({brief_err}). Falling back to legacy generateContent API...")
+                    return generate_music_clip_lyria(
+                        client, prompt, filename, music_dir, model_name,
+                        duration_sec=duration_sec, force=force, max_retries=max_retries,
+                        api_engine=API_ENGINE_LEGACY, allow_fallback=False, use_vertex=use_vertex
+                    )
+                if any(kw in str(e).upper() for kw in ["404", "NOT_FOUND", "PERMISSION_DENIED", "SERVICE_BLOCKED"]):
+                    print(f"   ⚠️ Lyria Music notice: Model '{model_name}' is unavailable on this platform/project ({brief_err}).")
+                    if use_vertex and not avail.get("vertex_ai", True):
+                        vtx_alts = get_available_models_for_role("music_generator", platform="vertex_ai")
+                        alts_str = ", ".join([f"--music-model {m}" for m in vtx_alts]) if vtx_alts else "--music-model lyria-3-clip-preview"
+                        print(f"      Tip: '{model_name}' is exclusively available on Google AI Studio. To generate music on Vertex AI, specify a Vertex Model Garden model (e.g. {alts_str}) or run without --vertexai.")
+                    elif not use_vertex and not avail.get("ai_studio", True):
+                        ais_alts = get_available_models_for_role("music_generator", platform="ai_studio")
+                        alts_str = ", ".join([f"--music-model {m}" for m in ais_alts]) if ais_alts else "--music-model lyria-3.5"
+                        print(f"      Tip: '{model_name}' is exclusively available on Vertex AI. To generate music on AI Studio, specify an available model (e.g. {alts_str}) or pass --vertexai.")
+                    else:
+                        print(f"      Continuing show generation without auto-generated music. You can place an audio file at '{out_path}'.")
+                    return False
                 if attempt < max_retries:
-                    print(f"   ⚠️ Retrying API call for music (attempt {attempt}/{max_retries}) due to: {e}")
+                    print(f"   ⚠️ Retrying API call for music (attempt {attempt}/{max_retries}) due to: {brief_err}")
                     time.sleep(5)
                 else:
-                    print(f"   ⚠️ Lyria Music synthesis error: {e}. Continuing show generation.")
+                    print(f"   ⚠️ Lyria Music synthesis error: {brief_err}. Continuing show generation.")
                     return False
-        except Exception as e:
-            log_api_event("LYRIA_MUSIC", "ERROR", {"filename": filename, "attempt": attempt, "error": str(e)})
-            if attempt < max_retries:
-                print(f"   ⚠️ Retrying music generation (attempt {attempt}/{max_retries}) due to: {e}")
-                time.sleep(5)
-            else:
-                print(f"   ⚠️ Music generation error: {e}. Continuing show generation.")
-                return False
+        else:
+            # Legacy generateContent API
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=input_text,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"]
+                    )
+                )
+
+                audio_data = None
+                mime_type = "audio/mp3"
+                if response and getattr(response, "candidates", None):
+                    candidate = response.candidates[0]
+                    if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                        for part in candidate.content.parts:
+                            if hasattr(part, "inline_data") and part.inline_data:
+                                audio_data = part.inline_data.data
+                                mime_type = getattr(part.inline_data, "mime_type", "audio/mp3")
+                                break
+
+                if audio_data:
+                    save_audio_bytes(audio_data, mime_type, out_path)
+                    log_api_event("LYRIA_MUSIC", "SUCCESS", {
+                        "filename": filename,
+                        "model": model_name,
+                        "engine": "generate_content",
+                        "mime_type": mime_type,
+                        "bytes": len(audio_data)
+                    })
+                    print(f"   ✅ Lyria Music Track Saved ({mime_type}) via generateContent: {out_path}")
+                    time.sleep(6)
+                    return True
+                else:
+                    finish_reason = "UNKNOWN"
+                    if response and getattr(response, "candidates", None) and response.candidates:
+                        finish_reason = getattr(response.candidates[0], "finish_reason", "UNKNOWN")
+                    raise RuntimeError(f"No audio data returned by Lyria API for '{filename}' (finish_reason: {finish_reason})")
+
+            except APIError as e:
+                brief_err = format_error_brief(e)
+                log_api_event("LYRIA_MUSIC", "API_ERROR", {"filename": filename, "model": model_name, "attempt": attempt, "error": brief_err})
+                err_str = str(e)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    wait_sec = extract_retry_delay_seconds(e, default_delay=60.0)
+                    dur_fmt = format_duration_human(wait_sec)
+                    print(f"   ⏳ Rate limit hit (429). Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset (attempt {attempt}/{max_retries})...")
+                    time.sleep(wait_sec)
+                elif any(kw in err_str.upper() for kw in ["404", "NOT_FOUND"]):
+                    print(f"   ⚠️ Lyria Music notice: Model '{model_name}' is unavailable on this platform/project ({brief_err}).")
+                    if use_vertex and not avail.get("vertex_ai", True):
+                        vtx_alts = get_available_models_for_role("music_generator", platform="vertex_ai")
+                        alts_str = ", ".join([f"--music-model {m}" for m in vtx_alts]) if vtx_alts else "--music-model lyria-3-clip-preview"
+                        print(f"      Tip: '{model_name}' is exclusively available on Google AI Studio. To generate music on Vertex AI, specify a Vertex Model Garden model (e.g. {alts_str}) or run without --vertexai.")
+                    elif not use_vertex and not avail.get("ai_studio", True):
+                        ais_alts = get_available_models_for_role("music_generator", platform="ai_studio")
+                        alts_str = ", ".join([f"--music-model {m}" for m in ais_alts]) if ais_alts else "--music-model lyria-3.5"
+                        print(f"      Tip: '{model_name}' is exclusively available on Vertex AI. To generate music on AI Studio, specify an available model (e.g. {alts_str}) or pass --vertexai.")
+                    else:
+                        print(f"      Continuing show generation without auto-generated music. You can place an audio file at '{out_path}'.")
+                    return False
+                elif any(kw in err_str.upper() for kw in ["PERMISSION_DENIED", "SERVICE_BLOCKED"]):
+                    print(f"   ⚠️ Lyria Music notice: Access denied for model '{model_name}' ({brief_err}).")
+                    if use_vertex and not avail.get("vertex_ai", True):
+                        vtx_alts = get_available_models_for_role("music_generator", platform="vertex_ai")
+                        alts_str = ", ".join([f"--music-model {m}" for m in vtx_alts]) if vtx_alts else "--music-model lyria-3-clip-preview"
+                        print(f"      Tip: '{model_name}' is exclusively available on Google AI Studio. To generate music on Vertex AI, specify a Vertex Model Garden model (e.g. {alts_str}) or run without --vertexai.")
+                    elif not use_vertex and not avail.get("ai_studio", True):
+                        ais_alts = get_available_models_for_role("music_generator", platform="ai_studio")
+                        alts_str = ", ".join([f"--music-model {m}" for m in ais_alts]) if ais_alts else "--music-model lyria-3.5"
+                        print(f"      Tip: '{model_name}' is exclusively available on Vertex AI. To generate music on AI Studio, specify an available model (e.g. {alts_str}) or pass --vertexai.")
+                    else:
+                        print(f"      Continuing show generation without auto-generated music. You can place an audio file at '{out_path}'.")
+                    return False
+                else:
+                    if attempt < max_retries:
+                        print(f"   ⚠️ Retrying API call for music (attempt {attempt}/{max_retries}) due to: {brief_err}")
+                        time.sleep(5)
+                    else:
+                        print(f"   ⚠️ Lyria Music synthesis error: {brief_err}. Continuing show generation.")
+                        return False
+            except Exception as e:
+                brief_err = format_error_brief(e)
+                log_api_event("LYRIA_MUSIC", "ERROR", {"filename": filename, "model": model_name, "attempt": attempt, "error": brief_err})
+                if attempt < max_retries:
+                    print(f"   ⚠️ Retrying music generation (attempt {attempt}/{max_retries}) due to: {brief_err}")
+                    time.sleep(5)
+                else:
+                    print(f"   ⚠️ Music generation error: {brief_err}. Continuing show generation.")
+                    return False
 
     return False
 
@@ -803,6 +1069,8 @@ def main():
     parser.add_argument("--no-batch-tts", action="store_false", dest="batch_tts", help="Disable batched TTS generation and fall back to 1:1 API requests")
     parser.add_argument("--batch-size", type=int, default=None, help="Maximum number of voice clips per batched TTS request (default: 10)")
     parser.add_argument("--legacy-mode", action="store_true", help="Shortcut to disable all batching and fall back to legacy 1:1 API execution")
+    parser.add_argument("--legacy-api", "--use-generate-content", "--legacy-generate-content", action="store_true", default=False, help="Use legacy generateContent API instead of the preferred Interactions API (June 2026 standard)")
+    parser.add_argument("--api-engine", choices=["interactions", "generate_content", "auto"], default=None, help="Explicitly choose model API engine: 'interactions' (default) or 'generate_content'")
     platform_group = parser.add_mutually_exclusive_group()
     platform_group.add_argument("--vertexai", action="store_true", default=None, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
     platform_group.add_argument("--aistudio", "--ai-studio", "--no-vertexai", action="store_true", default=None, help="Force Google AI Studio backend platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)")
@@ -831,13 +1099,6 @@ def main():
     voice_persona = args.voice or config.get("voice") or persona.get("voice_name") or persona.get("voice") or DEFAULT_VOICE_PERSONA
     global_audio_tags = args.audio_tags or config.get("audio_tags") or persona.get("audio_tags") or persona.get("audio_tag") or DEFAULT_AUDIO_TAGS
 
-    # Check model lifecycle status and warn if inactive (preview/legacy)
-    warn_if_inactive_models({
-        "tts_voice": tts_model,
-        "announcer_script": llm_model,
-        "music_generator": music_model
-    })
-
     if args.legacy_mode:
         batch_script = False
         batch_tts = False
@@ -863,8 +1124,23 @@ def main():
         cli_aistudio=args.aistudio,
         config=config,
         gcp_project=args.gcp_project,
-        gcp_location=args.gcp_location
+        gcp_location=args.gcp_location,
+        music_model=music_model
     )
+
+    api_engine, api_engine_desc = resolve_api_engine(
+        cli_legacy_api=args.legacy_api,
+        cli_api_engine=args.api_engine,
+        config=config,
+        use_vertex=use_vertex
+    )
+
+    # Check model lifecycle status and warn if inactive (preview/legacy) or platform-incompatible
+    warn_if_inactive_models({
+        "tts_voice": tts_model,
+        "announcer_script": llm_model,
+        "music_generator": music_model
+    }, use_vertex=use_vertex)
 
     prefix = persona.get("prompt_prefix", "")
     player_template = config.get("player_template", "Number {number}, {name}!")
@@ -894,6 +1170,7 @@ def main():
 
     print("🚀 TeamHypeAI - Sports Audio Generator")
     print(f"   Platform Backend:   {platform_desc}")
+    print(f"   API Engine:         {api_engine_desc}")
     print(f"   TTS Model:          {tts_model}")
     print(f"   Script Model:       {llm_model} (mode: {enhance_mode})")
     print(f"   Music AI Model:     {music_model}")
@@ -1060,7 +1337,8 @@ def main():
                     theme_context=theme_context,
                     delivery_instructions=prefix,
                     regional_accent=regional_accent,
-                    accent_guidance=accent_guidance
+                    accent_guidance=accent_guidance,
+                    api_engine=api_engine
                 )
 
                 if enhanced_map and isinstance(enhanced_map, dict):
@@ -1081,7 +1359,8 @@ def main():
                                 delivery_instructions=prefix,
                                 audio_tag=item.get("audio_tag", ""),
                                 regional_accent=regional_accent,
-                                accent_guidance=accent_guidance
+                                accent_guidance=accent_guidance,
+                                api_engine=api_engine
                             )
                             item["final_text"] = clean_spoken_text(enhanced, allow_vocal_tags=True)
                         else:
@@ -1097,7 +1376,8 @@ def main():
                             delivery_instructions=prefix,
                             audio_tag=item.get("audio_tag", ""),
                             regional_accent=regional_accent,
-                            accent_guidance=accent_guidance
+                            accent_guidance=accent_guidance,
+                            api_engine=api_engine
                         )
                         item["final_text"] = clean_spoken_text(enhanced, allow_vocal_tags=True)
                     else:
@@ -1116,23 +1396,23 @@ def main():
             for chunk_idx, chunk in enumerate(chunks, start=1):
                 print(f"   🎙️ Processing TTS Batch {chunk_idx}/{len(chunks)} ({len(chunk)} clip(s))...")
                 batch_payload = [{"filename": item["filename"], "text": item["final_text"], "style": item.get("audio_tag", default_style)} for item in chunk]
-                success = generate_audio_batch_gemini(client, batch_payload, args.output_dir, tts_model, voice_persona, batch_style=default_style)
+                success = generate_audio_batch_gemini(client, batch_payload, args.output_dir, tts_model, voice_persona, batch_style=default_style, api_engine=api_engine)
 
                 if not success:
                     print(f"   ⚠️ Falling back to 1:1 TTS generation for Batch {chunk_idx} items...")
                     for item in chunk:
-                        generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, style=item.get("audio_tag", default_style), force=args.force)
+                        generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, style=item.get("audio_tag", default_style), force=args.force, api_engine=api_engine)
         else:
             print(f"🔊 Generating {len(items_to_process)} voice clip(s) using 1:1 TTS API requests...")
             for item in items_to_process:
-                generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, style=item.get("audio_tag", default_style), force=args.force)
+                generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, style=item.get("audio_tag", default_style), force=args.force, api_engine=api_engine)
 
     # 2. Generate Music Clip via Google Lyria Model
     if not args.skip_music:
         print("\n🎵 Generating Royalty-Free Background Music via Google Lyria AI...")
         m_prompt = music_config.get("prompt", "30-second loopable high-energy arena rock music")
         m_dur = min(music_config.get("duration_seconds", 30), 120)
-        generate_music_clip_lyria(client, m_prompt, m_file, args.music_dir, music_model, duration_sec=m_dur, force=args.force)
+        generate_music_clip_lyria(client, m_prompt, m_file, args.music_dir, music_model, duration_sec=m_dur, force=args.force, api_engine=api_engine, use_vertex=use_vertex)
 
     print("\n✅ All Gemini AI voice clips and Lyria music track successfully processed!")
 

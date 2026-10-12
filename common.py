@@ -11,6 +11,7 @@ import sys
 import json
 import datetime
 import re
+from typing import Optional, Dict, Any, List
 
 
 def log_api_event(category, action, details="", log_path="logs/api_execution.log"):
@@ -48,6 +49,11 @@ DEFAULT_MUSIC_MODEL = "lyria-3.5"
 DEFAULT_VOICE_PERSONA = "Puck"
 DEFAULT_ENHANCE_MODE = "auto"
 DEFAULT_AUDIO_TAGS = "excitedly, fast-paced arena announcer"
+
+# API Engine Constants (Interactions API preferred as of June 2026)
+API_ENGINE_INTERACTIONS = "interactions"
+API_ENGINE_LEGACY = "generate_content"
+DEFAULT_API_ENGINE = API_ENGINE_INTERACTIONS
 
 VALID_POINT_IN_TIME_TAGS = {
     "short pause", "pause", "breath", "cough", "sigh", "laugh", "gasp", "cheer", "groan", "shout"
@@ -218,11 +224,119 @@ def check_model_status(model_name: str, category: str = "general", json_path: st
     }
 
 
-def warn_if_inactive_models(models_dict: dict, json_path: str = "config/cost_rates.json") -> bool:
+def get_model_availability(model_name: str, json_path: str = "config/cost_rates.json") -> dict:
+    """
+    Checks platform availability for a given model from config/cost_rates.json (DRY single source of truth).
+    Returns a dict with:
+      - ai_studio: bool (True if available on Google AI Studio)
+      - vertex_ai: bool (True if available on Google Cloud Vertex AI)
+      - exclusive_to: Optional[str] ('ai_studio', 'vertex_ai', or None)
+      - supported_channels: list[str]
+      - vertex_model_id: Optional[str]
+      - notes: Optional[str]
+      - role: Optional[str]
+      - display_name: str
+    """
+    if not model_name:
+        return {
+            "ai_studio": True,
+            "vertex_ai": True,
+            "exclusive_to": None,
+            "supported_channels": ["ai_studio", "vertex_ai"],
+            "vertex_model_id": None,
+            "notes": None,
+            "role": None,
+            "display_name": model_name
+        }
+
+    tracked = {}
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                tracked = data.get("tracked_models", {})
+        except Exception:
+            pass
+
+    meta = tracked.get(model_name, {})
+    avail = meta.get("availability")
+    channels = meta.get("supported_channels", [])
+
+    if isinstance(avail, dict):
+        ai_studio = bool(avail.get("ai_studio", True))
+        vertex_ai = bool(avail.get("vertex_ai", True))
+        exclusive_to = avail.get("exclusive_to")
+        vertex_model_id = avail.get("vertex_model_id")
+        notes = avail.get("notes")
+    else:
+        # Fallback to supported_channels list if availability dict not present
+        ai_studio = "ai_studio" in channels if channels else True
+        vertex_ai = "vertex_ai" in channels if channels else True
+        exclusive_to = "ai_studio" if (ai_studio and not vertex_ai) else ("vertex_ai" if (vertex_ai and not ai_studio) else None)
+        vertex_model_id = None
+        notes = None
+
+    if not exclusive_to:
+        if ai_studio and not vertex_ai:
+            exclusive_to = "ai_studio"
+        elif vertex_ai and not ai_studio:
+            exclusive_to = "vertex_ai"
+
+    return {
+        "ai_studio": ai_studio,
+        "vertex_ai": vertex_ai,
+        "exclusive_to": exclusive_to,
+        "supported_channels": channels or (["ai_studio"] if ai_studio else []) + (["vertex_ai"] if vertex_ai else []),
+        "vertex_model_id": vertex_model_id,
+        "notes": notes,
+        "role": meta.get("role"),
+        "display_name": meta.get("display_name", model_name)
+    }
+
+
+def is_model_available_on_platform(model_name: str, use_vertex: bool, json_path: str = "config/cost_rates.json") -> bool:
+    """
+    Returns True if the model is available on the specified backend platform
+    (Google Cloud Vertex AI if use_vertex=True, else Google AI Studio).
+    """
+    avail = get_model_availability(model_name, json_path=json_path)
+    return avail.get("vertex_ai", True) if use_vertex else avail.get("ai_studio", True)
+
+
+def get_available_models_for_role(role: str, platform: str = "ai_studio", json_path: str = "config/cost_rates.json") -> list:
+    """
+    Returns a list of model IDs matching a given role (e.g. 'music_generator', 'announcer_script', 'tts_voice')
+    that are available on the specified platform ('ai_studio' or 'vertex_ai') from config/cost_rates.json.
+    """
+    tracked = {}
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                tracked = data.get("tracked_models", {})
+        except Exception:
+            pass
+
+    plat_key = "vertex_ai" if (platform in ["vertex", "vertex_ai", "vertexai"]) else "ai_studio"
+    models = []
+    for m_id, meta in tracked.items():
+        if meta.get("role") != role:
+            continue
+        avail = meta.get("availability", {})
+        if isinstance(avail, dict):
+            is_avail = avail.get(plat_key, plat_key in meta.get("supported_channels", []))
+        else:
+            is_avail = plat_key in meta.get("supported_channels", [])
+        if is_avail:
+            models.append(m_id)
+    return models
+
+
+def warn_if_inactive_models(models_dict: dict, json_path: str = "config/cost_rates.json", use_vertex: Optional[bool] = None) -> bool:
     """
     Checks a dictionary of {role_or_category: model_name} and prints formatted warnings
-    if any selected model is not in 'active' status.
-    Returns True if any non-active model was detected.
+    if any selected model is not in 'active' status or is incompatible with the selected platform.
+    Returns True if any non-active or incompatible model was detected.
     """
     warnings = []
     for role, model_name in models_dict.items():
@@ -232,9 +346,30 @@ def warn_if_inactive_models(models_dict: dict, json_path: str = "config/cost_rat
         if not info["is_active"] and info["warning_message"]:
             warnings.append(info["warning_message"])
 
+        # Check platform compatibility if use_vertex is specified
+        if use_vertex is not None:
+            avail = get_model_availability(model_name, json_path=json_path)
+            model_role = avail.get("role") or role
+            if use_vertex and not avail.get("vertex_ai", True):
+                vtx_models = get_available_models_for_role(model_role, platform="vertex_ai", json_path=json_path)
+                rec = f"Available Vertex AI models: {', '.join(vtx_models)}" if vtx_models else "Run without --vertexai to auto-route to Google AI Studio"
+                warnings.append(
+                    f"⚠️  PLATFORM COMPATIBILITY: Model '{model_name}' ({role}) is not supported on Google Cloud Vertex AI.\n"
+                    f"   • Limitation: This model is exclusive to Google AI Studio.\n"
+                    f"   • Recommendation: {rec}."
+                )
+            elif not use_vertex and not avail.get("ai_studio", True):
+                ais_models = get_available_models_for_role(model_role, platform="ai_studio", json_path=json_path)
+                rec = f"Available AI Studio models: {', '.join(ais_models)}" if ais_models else "Run with --vertexai"
+                warnings.append(
+                    f"⚠️  PLATFORM COMPATIBILITY: Model '{model_name}' ({role}) is not supported on Google AI Studio.\n"
+                    f"   • Limitation: This model is exclusive to Google Cloud Vertex AI Model Garden.\n"
+                    f"   • Recommendation: {rec}."
+                )
+
     if warnings:
         print("\n" + "=" * 70)
-        print("🚨 NON-ACTIVE MODEL SELECTION DISCLAIMER & RECOMMENDATIONS")
+        print("🚨 MODEL SELECTION & PLATFORM COMPATIBILITY DISCLAIMER")
         print("=" * 70)
         for w in warnings:
             print(w)
@@ -387,23 +522,29 @@ def get_model_cost_rates(model_name, category="voice", json_path="config/cost_ra
     return rates
 
 
-def resolve_platform_backend(cli_vertexai=None, cli_aistudio=None, config=None, gcp_project=None, gcp_location=None):
+def resolve_platform_backend(cli_vertexai=None, cli_aistudio=None, config=None, gcp_project=None, gcp_location=None, music_model=None):
     """
     Centrally resolves whether to target Google Cloud Vertex AI or Google AI Studio across all CLI tools.
     
     Precedence:
-      1. Explicit CLI flag:
+      1. Explicit CLI flag (Highest Precedence):
          - cli_aistudio (True) -> False (Google AI Studio, strictly overrides .env)
          - cli_vertexai (True) -> True (Google Cloud Vertex AI)
-      2. Config file settings (config):
+      2. Model Availability Auto-Routing:
+         - Dynamically checks model availability from config/cost_rates.json (DRY source of truth).
+         - If configured model is exclusive to Google AI Studio and cli_vertexai is NOT True,
+           routes entire pipeline to Google AI Studio.
+         - If configured model is exclusive to Vertex AI and cli_aistudio is NOT True,
+           routes entire pipeline to Vertex AI.
+      3. Config file settings (config):
          - config.models.platform / config.platform == 'aistudio' -> False
          - config.models.platform / config.platform in ['vertexai', 'vertex'] -> True
          - config.models.vertexai / config.models.use_vertexai / config.vertexai -> bool
-      3. Environment variables:
+      4. Environment variables:
          - GOOGLE_GENAI_PLATFORM == 'aistudio' -> False
          - GOOGLE_GENAI_PLATFORM in ['vertexai', 'vertex'] -> True
          - GOOGLE_GENAI_USE_VERTEXAI in ['true', '1', 'yes'] -> True
-      4. Default: False (Google AI Studio)
+      5. Default: False (Google AI Studio)
       
     Returns:
       tuple: (use_vertex: bool, platform_desc: str, project: Optional[str], location: Optional[str])
@@ -416,9 +557,27 @@ def resolve_platform_backend(cli_vertexai=None, cli_aistudio=None, config=None, 
     elif cli_vertexai:
         use_vertex = True
     else:
-        # 2. Config file settings
+        # 2. Model Availability Auto-Routing:
+        # Dynamically checks model availability from config/cost_rates.json (DRY single source of truth).
         cfg = config or {}
         models_cfg = cfg.get("models", {}) if isinstance(cfg, dict) else {}
+        music_cfg = cfg.get("music", {}) if isinstance(cfg, dict) else {}
+        eff_music = str(music_model or models_cfg.get("music_model") or music_cfg.get("model") or cfg.get("music_model") or DEFAULT_MUSIC_MODEL).lower().strip()
+
+        music_avail = get_model_availability(eff_music)
+        if music_avail.get("ai_studio") and not music_avail.get("vertex_ai"):
+            use_vertex = False
+            platform_desc = f"Google AI Studio (Auto-routed for {eff_music})"
+            return use_vertex, platform_desc, None, "us-central1"
+        elif music_avail.get("vertex_ai") and not music_avail.get("ai_studio") and not cli_aistudio:
+            use_vertex = True
+            resolved_proj = gcp_project or cfg.get("gcp_project", models_cfg.get("gcp_project")) or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
+            resolved_loc = gcp_location or cfg.get("gcp_location", models_cfg.get("gcp_location")) or os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("GCP_LOCATION", "us-central1")
+            proj_str = f" (Project: {resolved_proj}, Region: {resolved_loc})" if resolved_proj else f" (Region: {resolved_loc})"
+            platform_desc = f"Google Cloud Vertex AI (Auto-routed for {eff_music}){proj_str}"
+            return use_vertex, platform_desc, resolved_proj, resolved_loc
+
+        # 3. Config file settings
         plat_cfg = str(cfg.get("platform") or models_cfg.get("platform") or "").lower().strip()
 
         if plat_cfg in ["aistudio", "ai_studio", "studio"]:
@@ -430,7 +589,7 @@ def resolve_platform_backend(cli_vertexai=None, cli_aistudio=None, config=None, 
             if raw_cfg_vertex is not None:
                 use_vertex = bool(raw_cfg_vertex)
             else:
-                # 3. Environment variables
+                # 4. Environment variables
                 env_plat = os.environ.get("GOOGLE_GENAI_PLATFORM", "").lower().strip()
                 if env_plat in ["aistudio", "ai_studio", "studio"]:
                     use_vertex = False
@@ -522,7 +681,150 @@ def init_gemini_client(api_key=None, use_vertex=None, project=None, location=Non
             sys.exit(1)
 
         print("🔑 GEMINI API Key detected (sourced from environment / .env). Initializing Google AI Studio client.")
-        return genai.Client(api_key=api_key_val)
+        return genai.Client(vertexai=False, api_key=api_key_val)
+
+
+def format_error_brief(error: Exception, max_len: int = 150) -> str:
+    """
+    Sanitizes API exception messages, stripping raw HTML response dumps
+    and truncating verbose error bodies for clean CLI presentation.
+    """
+    if not error:
+        return "Unknown error"
+    err_str = str(error)
+    if "<!DOCTYPE" in err_str or "<html" in err_str:
+        if "404" in err_str or "Not Found" in err_str:
+            return "404 Not Found (endpoint not available on this platform)"
+        elif "403" in err_str or "Permission" in err_str:
+            return "403 Forbidden / Permission Denied"
+        elif "500" in err_str:
+            return "500 Internal Server Error"
+        return "HTTP error response from server"
+
+    cleaned = " ".join(err_str.split())
+    if len(cleaned) > max_len:
+        return cleaned[:max_len] + "..."
+    return cleaned
+
+
+def resolve_api_engine(cli_legacy_api: bool = False, cli_api_engine: str = None, config: dict = None, use_vertex: bool = False) -> tuple:
+    """
+    Resolves the model interaction API engine with strict platform-aware precedence:
+      1. Explicit CLI flag --legacy-api / --use-generate-content forces 'generate_content'
+      2. Explicit CLI flag --api-engine ('interactions' or 'generate_content')
+      3. If use_vertex is True: Vertex AI natively standardizes on 'generate_content'
+         (Interactions API is an AI Studio endpoint at generativelanguage.googleapis.com)
+      4. Team config: models.api_engine ('interactions' or 'generate_content')
+      5. Environment variable: GEMINI_API_ENGINE ('interactions' or 'generate_content')
+      6. Default: 'interactions' on Google AI Studio per June 2026 standard
+
+    Returns:
+      tuple: (api_engine: str, engine_desc: str)
+        e.g. ("interactions", "Interactions API (Preferred)") or ("generate_content", "generateContent API (Vertex AI Standard)")
+    """
+    load_dotenv_if_present()
+
+    if cli_legacy_api:
+        return API_ENGINE_LEGACY, "Legacy generateContent API"
+
+    if cli_api_engine:
+        val = str(cli_api_engine).lower().strip()
+        if val in ["interactions", "interaction", "new"]:
+            if use_vertex:
+                return API_ENGINE_INTERACTIONS, "Interactions API (Warning: not natively hosted on Vertex AI)"
+            return API_ENGINE_INTERACTIONS, "Interactions API (Preferred)"
+        elif val in ["generate_content", "generatecontent", "legacy", "models"]:
+            if use_vertex:
+                return API_ENGINE_LEGACY, "generateContent API (Vertex AI Standard)"
+            return API_ENGINE_LEGACY, "Legacy generateContent API"
+
+    # Platform default: Vertex AI natively uses generate_content, while AI Studio uses interactions
+    if use_vertex:
+        return API_ENGINE_LEGACY, "generateContent API (Vertex AI Standard)"
+
+    cfg = config or {}
+    m_cfg = cfg.get("models", {}) if isinstance(cfg, dict) else {}
+    cfg_val = str(
+        cfg.get("api_engine")
+        or cfg.get("api_mode")
+        or m_cfg.get("api_engine")
+        or m_cfg.get("api_mode")
+        or ""
+    ).lower().strip()
+    if cfg_val in ["interactions", "interaction", "new"]:
+        return API_ENGINE_INTERACTIONS, "Interactions API (Preferred)"
+    elif cfg_val in ["generate_content", "generatecontent", "legacy", "models"]:
+        return API_ENGINE_LEGACY, "Legacy generateContent API (from config)"
+
+    env_val = os.environ.get("GEMINI_API_ENGINE", "").lower().strip()
+    if env_val in ["interactions", "interaction", "new"]:
+        return API_ENGINE_INTERACTIONS, "Interactions API (Preferred)"
+    elif env_val in ["generate_content", "generatecontent", "legacy", "models"]:
+        return API_ENGINE_LEGACY, "Legacy generateContent API (from env)"
+
+    return API_ENGINE_INTERACTIONS, "Interactions API (Preferred)"
+
+
+def extract_audio_bytes_from_interaction(interaction) -> tuple:
+    """
+    Extracts raw audio bytes and MIME type from an Interaction object returned by client.interactions.create().
+    Supports both direct output_audio attribute (AudioContent.data base64 string or bytes)
+    and timeline model_output steps content blocks.
+    
+    Returns:
+      tuple: (audio_bytes: Optional[bytes], mime_type: str)
+    """
+    import base64
+
+    if not interaction:
+        return None, "audio/mp3"
+
+    audio_bytes = None
+    mime_type = "audio/mp3"
+
+    # 1. Check direct output_audio helper attribute
+    out_audio = getattr(interaction, "output_audio", None)
+    if out_audio:
+        mime_type = getattr(out_audio, "mime_type", "audio/mp3") or "audio/mp3"
+        if isinstance(out_audio, (bytes, bytearray)):
+            return bytes(out_audio), mime_type
+        if hasattr(out_audio, "data") and out_audio.data:
+            data_val = out_audio.data
+            if isinstance(data_val, str):
+                try:
+                    audio_bytes = base64.b64decode(data_val)
+                except Exception:
+                    audio_bytes = data_val.encode("utf-8")
+            elif isinstance(data_val, (bytes, bytearray)):
+                audio_bytes = bytes(data_val)
+        if audio_bytes:
+            return audio_bytes, mime_type
+
+    # 2. Check steps timeline
+    steps = getattr(interaction, "steps", None)
+    if steps and isinstance(steps, list):
+        for step in reversed(steps):
+            if getattr(step, "type", None) == "model_output":
+                content = getattr(step, "content", None)
+                if isinstance(content, list):
+                    for item in content:
+                        item_type = getattr(item, "type", None)
+                        if item_type == "audio":
+                            mime_type = getattr(item, "mime_type", mime_type) or mime_type
+                            if hasattr(item, "data") and item.data:
+                                data_val = item.data
+                                if isinstance(data_val, str):
+                                    try:
+                                        audio_bytes = base64.b64decode(data_val)
+                                    except Exception:
+                                        audio_bytes = data_val.encode("utf-8")
+                                elif isinstance(data_val, (bytes, bytearray)):
+                                    audio_bytes = bytes(data_val)
+                            if audio_bytes:
+                                return audio_bytes, mime_type
+
+    return audio_bytes, mime_type
+
 
 
 

@@ -25,6 +25,9 @@ TeamHypeAI strictly focuses on models relevant to sports stadium introductions:
 | **`tts_voice`** | Stadium PA speech generation with speech_metadata | [`gemini-3.8-flash-tts`](config/cost_rates.json) | `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview` *(deprecated)* |
 | **`music_generator`** | Arena entrance music generation | [`lyria-3.5`](config/cost_rates.json) | `lyria-3-clip-preview`, `lyria-3-pro-preview` |
 
+> [!NOTE]
+> As of June 2026, model invocations across TeamHypeAI default to Google's **Interactions API** (`client.interactions.create`), standard for all new model interactions. Backwards compatibility with the legacy `generateContent` API is retained via the `--legacy-api` flag and automatic fallback handling.
+
 ---
 
 ## 🛠️ Step-by-Step Execution Workflow
@@ -32,7 +35,7 @@ TeamHypeAI strictly focuses on models relevant to sports stadium introductions:
 ### Step 1: Read Current Tracking Registry
 Inspect the local registry in [`config/cost_rates.json`](config/cost_rates.json):
 - Verify models under `tracked_models`.
-- Note currently supported usage channels (`ai_studio`, `vertex_ai`).
+- Note platform availability (`availability: {"ai_studio": bool, "vertex_ai": bool}`) and supported usage channels.
 
 ### Step 2: Query Available Model Catalog
 Run the local repository script in audit mode:
@@ -52,7 +55,7 @@ For verified or updated models, obtain:
 - **Identifier**: Exact API model name.
 - **Display Name & Description**: Capabilities, latency, and context limits.
 - **Documentation Link**: Official Google AI Studio or Cloud Vertex AI documentation URL.
-- **Channels**: AI Studio (`ai_studio`), Vertex AI (`vertex_ai`), or both.
+- **Platform Availability & Channels**: `availability: {"ai_studio": bool, "vertex_ai": bool}` and `supported_channels` (`ai_studio`, `vertex_ai`, or both).
 - **Pricing**: Standard and Batch input/output/cache rates per 1M tokens or per-request costs.
 
 ### Step 5: Update Local Configuration Data

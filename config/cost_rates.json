@@ -1,5 +1,5 @@
 {
-  "_schema_version": "2.1.0",
+  "_schema_version": "2.2.0",
   "_meta": {
     "sources": {
       "ai_studio": "https://ai.google.dev/pricing",
@@ -18,9 +18,10 @@
       "gemini-3.1-flash-tts-preview",
       "lyria-3.5",
       "lyria-3-clip-preview",
-      "lyria-3-pro-preview"
+      "lyria-3-pro-preview",
+      "lyria-002"
     ],
-    "last_updated": "2026-10-12T16:50:03Z"
+    "last_updated": "2026-10-12T23:12:29Z"
   },
   "tracked_models": {
     "gemini-3.8-flash": {
@@ -59,6 +60,10 @@
             "cache_1m": 0.075
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true
       }
     },
     "gemini-3.6-flash": {
@@ -98,6 +103,10 @@
             "cache_1m": 0.075
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true
       }
     },
     "gemini-3.5-flash": {
@@ -137,6 +146,10 @@
             "cache_1m": 0.075
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true
       }
     },
     "gemini-3.5-flash-lite": {
@@ -175,6 +188,10 @@
             "cache_1m": 0.02
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true
       }
     },
     "gemini-3.8-flash-tts": {
@@ -209,6 +226,10 @@
             "output_1m": 9.0
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true
       }
     },
     "gemini-3.8-flash-lite-tts": {
@@ -243,6 +264,10 @@
             "output_1m": 9.0
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true
       }
     },
     "gemini-3.1-flash-tts-preview": {
@@ -279,12 +304,16 @@
             "output_1m": 9.0
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true
       }
     },
     "lyria-3.5": {
       "display_name": "Lyria 3.5",
       "role": "music_generator",
-      "description": "Next-generation Lyria music generation model delivering stadium entrance music tracks.",
+      "description": "Next-generation Lyria music generation model delivering stadium entrance music tracks via Google AI Studio Interactions API (exclusive to AI Studio).",
       "documentation_url": "https://ai.google.dev/gemini-api/docs/models/lyria-3.5",
       "supported_channels": [
         "ai_studio"
@@ -308,15 +337,22 @@
             "song_request": 0.04
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": false,
+        "exclusive_to": "ai_studio",
+        "notes": "Available exclusively on Google AI Studio via the Interactions API."
       }
     },
     "lyria-3-clip-preview": {
       "display_name": "Lyria 3 Clip Preview",
       "role": "music_generator",
-      "description": "Synthesizes 30-second loopable high-energy stadium entrance music tracks.",
+      "description": "Synthesizes 30-second loopable high-energy stadium entrance music tracks (available on Vertex AI Model Garden as google/lyria-3-clip-preview).",
       "documentation_url": "https://ai.google.dev/gemini-api/docs/models/lyria-3-clip-preview",
       "supported_channels": [
-        "ai_studio"
+        "ai_studio",
+        "vertex_ai"
       ],
       "status": "preview",
       "recommended_replacement": "lyria-3.5",
@@ -338,15 +374,21 @@
             "song_request": 0.04
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true,
+        "vertex_model_id": "google/lyria-3-clip-preview"
       }
     },
     "lyria-3-pro-preview": {
       "display_name": "Lyria 3 Pro Preview",
       "role": "music_generator",
-      "description": "High-fidelity arena background entrance music tracks.",
+      "description": "High-fidelity arena background entrance music tracks (available on Vertex AI Model Garden as google/lyria-3-pro-preview).",
       "documentation_url": "https://ai.google.dev/gemini-api/docs/models/lyria-3-pro-preview",
       "supported_channels": [
-        "ai_studio"
+        "ai_studio",
+        "vertex_ai"
       ],
       "status": "preview",
       "recommended_replacement": "lyria-3.5",
@@ -368,6 +410,48 @@
             "song_request": 0.08
           }
         }
+      },
+      "availability": {
+        "ai_studio": true,
+        "vertex_ai": true,
+        "vertex_model_id": "google/lyria-3-pro-preview"
+      }
+    },
+    "lyria-002": {
+      "display_name": "Lyria 2",
+      "role": "music_generator",
+      "description": "Legacy Lyria 2 music generation model available on Vertex AI Model Garden as google/lyria-002.",
+      "documentation_url": "https://cloud.google.com/vertex-ai/generative-ai/docs/model-garden",
+      "supported_channels": [
+        "vertex_ai"
+      ],
+      "status": "legacy",
+      "recommended_replacement": "lyria-3.5",
+      "version_rank": 2.0,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "song_request": 0.04
+          },
+          "batch": {
+            "song_request": 0.04
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "song_request": 0.04
+          },
+          "batch": {
+            "song_request": 0.04
+          }
+        }
+      },
+      "availability": {
+        "ai_studio": false,
+        "vertex_ai": true,
+        "exclusive_to": "vertex_ai",
+        "vertex_model_id": "google/lyria-002",
+        "notes": "Available exclusively on Google Cloud Vertex AI Model Garden as google/lyria-002."
       }
     }
   },
@@ -494,14 +578,14 @@
           "input_1m": 0.5,
           "output_1m": 9.0
         },
-        "lyria-3.5": {
-          "song_request": 0.04
-        },
         "lyria-3-clip-preview": {
           "song_request": 0.04
         },
         "lyria-3-pro-preview": {
           "song_request": 0.08
+        },
+        "lyria-002": {
+          "song_request": 0.04
         }
       },
       "batch": {
@@ -537,14 +621,14 @@
           "input_1m": 0.5,
           "output_1m": 9.0
         },
-        "lyria-3.5": {
-          "song_request": 0.04
-        },
         "lyria-3-clip-preview": {
           "song_request": 0.04
         },
         "lyria-3-pro-preview": {
           "song_request": 0.08
+        },
+        "lyria-002": {
+          "song_request": 0.04
         }
       }
     }

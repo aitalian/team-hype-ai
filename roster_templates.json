@@ -1,5 +1,6 @@
 {
   "models": {
+    "api_engine": "interactions",
     "tts_model": "gemini-3.8-flash-tts",
     "llm_model": "gemini-3.8-flash",
     "music_model": "lyria-3.5",
