@@ -15,9 +15,9 @@ Requirements:
   - google-genai Python SDK installed (pip install google-genai)
 
 Models Used:
-  - Text-to-Speech (TTS): gemini-3.1-flash-tts-preview (or gemini-3.5-flash)
-  - Announcer Script Synthesizer: gemini-3.6-flash / gemini-3.5-flash / gemini-3.5-flash-lite
-  - Music Generation: lyria-3-clip-preview / lyria-3-pro-preview
+  - Text-to-Speech (TTS): gemini-3.8-flash-tts / gemini-3.8-flash-lite-tts / gemini-3.1-flash-tts-preview
+  - Announcer Script Synthesizer: gemini-3.8-flash / gemini-3.6-flash / gemini-3.5-flash-lite
+  - Music Generation: lyria-3.5 / lyria-3-clip-preview / lyria-3-pro-preview
 """
 
 import os
@@ -104,6 +104,8 @@ from common import (
     log_api_event,
     print_pricing_disclaimer,
     init_gemini_client,
+    check_model_status,
+    warn_if_inactive_models,
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_MUSIC_MODEL,
@@ -795,6 +797,13 @@ def main():
     music_model = args.music_model or config.get("music_model") or models_cfg.get("music_model") or music_config.get("model") or DEFAULT_MUSIC_MODEL
     voice_persona = args.voice or config.get("voice") or persona.get("voice_name") or persona.get("voice") or DEFAULT_VOICE_PERSONA
     global_audio_tags = args.audio_tags or config.get("audio_tags") or persona.get("audio_tags") or persona.get("audio_tag") or DEFAULT_AUDIO_TAGS
+
+    # Check model lifecycle status and warn if inactive (preview/legacy)
+    warn_if_inactive_models({
+        "tts_voice": tts_model,
+        "announcer_script": llm_model,
+        "music_generator": music_model
+    })
 
     if args.legacy_mode:
         batch_script = False

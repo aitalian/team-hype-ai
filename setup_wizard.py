@@ -18,6 +18,8 @@ import subprocess
 from common import (
     load_dotenv_if_present,
     load_gemini_voices,
+    check_model_status,
+    warn_if_inactive_models,
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_MUSIC_MODEL,
@@ -109,6 +111,11 @@ def main():
     tts_model = prompt_string("TTS Voice Model", DEFAULT_TTS_MODEL)
     llm_model = prompt_string("Script Synthesizer Model", DEFAULT_LLM_MODEL)
     music_model = prompt_string("Background Music AI Model", DEFAULT_MUSIC_MODEL)
+    warn_if_inactive_models({
+        "tts_voice": tts_model,
+        "announcer_script": llm_model,
+        "music_generator": music_model
+    })
     audio_tags = prompt_string("🔊 Gemini TTS Audio Tags (e.g. [excitedly], [shouting], [excitedly, fast-paced])", DEFAULT_AUDIO_TAGS)
     enhance_mode = prompt_choice(
         "LLM Announcer Script Enhancement Mode:",

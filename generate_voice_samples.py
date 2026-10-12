@@ -22,6 +22,8 @@ from common import (
     log_api_event,
     print_pricing_disclaimer,
     init_gemini_client,
+    check_model_status,
+    warn_if_inactive_models,
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_ENHANCE_MODE,
@@ -136,6 +138,11 @@ def main():
     print(f"   LLM Model:        {args.llm_model}")
     print(f"   Audio Tags:       {audio_tag}")
     print(f"   Sample Script:    \"{args.sample_text}\"")
+
+    warn_if_inactive_models({
+        "tts_voice": args.tts_model,
+        "announcer_script": args.llm_model
+    })
 
     if not to_generate and not args.dry_run:
         print("\n" + "=" * 60)

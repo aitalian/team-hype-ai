@@ -1,23 +1,383 @@
 {
+  "_schema_version": "2.0.0",
   "_meta": {
     "sources": {
-      "ai_studio": "https://ai.google.dev/gemini-api/docs/pricing",
+      "ai_studio": "https://ai.google.dev/pricing",
+      "gemini_models": "https://ai.google.dev/gemini-api/docs/models/gemini",
+      "gemini_tts": "https://ai.google.dev/gemini-api/docs/speech-generation",
       "vertex_ai_generative": "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing",
       "vertex_ai_tts": "https://cloud.google.com/text-to-speech/pricing"
     },
     "models_tracked": [
+      "gemini-3.8-flash",
       "gemini-3.6-flash",
       "gemini-3.5-flash",
       "gemini-3.5-flash-lite",
+      "gemini-3.8-flash-tts",
+      "gemini-3.8-flash-lite-tts",
       "gemini-3.1-flash-tts-preview",
+      "lyria-3.5",
       "lyria-3-clip-preview",
       "lyria-3-pro-preview"
     ],
-    "last_updated": "2026-07-27T13:55:51Z"
+    "last_updated": "2026-10-12T16:50:03Z"
+  },
+  "tracked_models": {
+    "gemini-3.8-flash": {
+      "display_name": "Gemini 3.8 Flash",
+      "role": "announcer_script",
+      "description": "Our most intelligent Flash model, engineered for long-horizon software engineering, autonomous agents, and complex enterprise workflows.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash",
+      "supported_channels": [
+        "ai_studio",
+        "vertex_ai"
+      ],
+      "status": "active",
+      "version_rank": 3.8,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "input_1m": 1.5,
+            "output_1m": 7.5,
+            "cache_1m": 0.15
+          },
+          "batch": {
+            "input_1m": 0.75,
+            "output_1m": 3.75,
+            "cache_1m": 0.075
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "input_1m": 1.5,
+            "output_1m": 7.5,
+            "cache_1m": 0.15
+          },
+          "batch": {
+            "input_1m": 0.75,
+            "output_1m": 3.75,
+            "cache_1m": 0.075
+          }
+        }
+      }
+    },
+    "gemini-3.6-flash": {
+      "display_name": "Gemini 3.6 Flash",
+      "role": "announcer_script",
+      "description": "Previous generation Flash model, balancing speed and multimodal capabilities across general agentic and everyday tasks.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.6-flash",
+      "supported_channels": [
+        "ai_studio",
+        "vertex_ai"
+      ],
+      "status": "legacy",
+      "recommended_replacement": "gemini-3.8-flash",
+      "version_rank": 3.6,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "input_1m": 1.5,
+            "output_1m": 7.5,
+            "cache_1m": 0.15
+          },
+          "batch": {
+            "input_1m": 0.75,
+            "output_1m": 3.75,
+            "cache_1m": 0.075
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "input_1m": 1.5,
+            "output_1m": 7.5,
+            "cache_1m": 0.15
+          },
+          "batch": {
+            "input_1m": 0.75,
+            "output_1m": 3.75,
+            "cache_1m": 0.075
+          }
+        }
+      }
+    },
+    "gemini-3.5-flash": {
+      "display_name": "Gemini 3.5 Flash",
+      "role": "announcer_script",
+      "description": "Legacy Flash model with reliable general script generation capabilities.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash",
+      "supported_channels": [
+        "ai_studio",
+        "vertex_ai"
+      ],
+      "status": "legacy",
+      "recommended_replacement": "gemini-3.8-flash",
+      "version_rank": 3.5,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "input_1m": 1.5,
+            "output_1m": 9.0,
+            "cache_1m": 0.15
+          },
+          "batch": {
+            "input_1m": 0.75,
+            "output_1m": 4.5,
+            "cache_1m": 0.075
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "input_1m": 1.5,
+            "output_1m": 9.0,
+            "cache_1m": 0.15
+          },
+          "batch": {
+            "input_1m": 0.75,
+            "output_1m": 4.5,
+            "cache_1m": 0.075
+          }
+        }
+      }
+    },
+    "gemini-3.5-flash-lite": {
+      "display_name": "Gemini 3.5 Flash-Lite",
+      "role": "announcer_script",
+      "description": "Ultra-lightweight, cost-efficient announcer script generation alternative.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite",
+      "supported_channels": [
+        "ai_studio",
+        "vertex_ai"
+      ],
+      "status": "active",
+      "version_rank": 3.5,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "input_1m": 0.3,
+            "output_1m": 2.5,
+            "cache_1m": 0.03
+          },
+          "batch": {
+            "input_1m": 0.15,
+            "output_1m": 1.25,
+            "cache_1m": 0.02
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "input_1m": 0.3,
+            "output_1m": 2.5,
+            "cache_1m": 0.03
+          },
+          "batch": {
+            "input_1m": 0.15,
+            "output_1m": 1.25,
+            "cache_1m": 0.02
+          }
+        }
+      }
+    },
+    "gemini-3.8-flash-tts": {
+      "display_name": "Gemini 3.8 Flash TTS",
+      "role": "tts_voice",
+      "description": "Our 3.8 Flash Text-to-Speech audio model engineered for studio-grade voice fidelity, expressive acting, and long-form stability.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash-tts",
+      "supported_channels": [
+        "ai_studio",
+        "vertex_ai"
+      ],
+      "status": "active",
+      "version_rank": 3.8,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "input_1m": 0.5,
+            "output_1m": 10.0
+          },
+          "batch": {
+            "input_1m": 0.5,
+            "output_1m": 10.0
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "input_1m": 0.5,
+            "output_1m": 9.0
+          },
+          "batch": {
+            "input_1m": 0.5,
+            "output_1m": 9.0
+          }
+        }
+      }
+    },
+    "gemini-3.8-flash-lite-tts": {
+      "display_name": "Gemini 3.8 Flash-Lite TTS",
+      "role": "tts_voice",
+      "description": "Our 3.8 Flash-Lite Text-to-Speech audio model optimized for high-throughput, low-latency, and cost-efficient conversational speech.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash-lite-tts",
+      "supported_channels": [
+        "ai_studio",
+        "vertex_ai"
+      ],
+      "status": "active",
+      "version_rank": 3.8,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "input_1m": 0.3,
+            "output_1m": 5.0
+          },
+          "batch": {
+            "input_1m": 0.3,
+            "output_1m": 5.0
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "input_1m": 0.5,
+            "output_1m": 9.0
+          },
+          "batch": {
+            "input_1m": 0.5,
+            "output_1m": 9.0
+          }
+        }
+      }
+    },
+    "gemini-3.1-flash-tts-preview": {
+      "display_name": "Gemini 3.1 Flash TTS Preview",
+      "role": "tts_voice",
+      "description": "Controllable speech generation supporting bracketed expressive audio tags.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-tts-preview",
+      "supported_channels": [
+        "ai_studio",
+        "vertex_ai"
+      ],
+      "status": "preview",
+      "recommended_replacement": "gemini-3.8-flash-tts",
+      "version_rank": 3.1,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "input_1m": 0.5,
+            "output_1m": 10.0
+          },
+          "batch": {
+            "input_1m": 0.5,
+            "output_1m": 10.0
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "input_1m": 0.5,
+            "output_1m": 9.0
+          },
+          "batch": {
+            "input_1m": 0.5,
+            "output_1m": 9.0
+          }
+        }
+      }
+    },
+    "lyria-3.5": {
+      "display_name": "Lyria 3.5",
+      "role": "music_generator",
+      "description": "Next-generation Lyria music generation model delivering stadium entrance music tracks.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/lyria-3.5",
+      "supported_channels": [
+        "ai_studio"
+      ],
+      "status": "active",
+      "version_rank": 3.5,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "song_request": 0.04
+          },
+          "batch": {
+            "song_request": 0.04
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "song_request": 0.04
+          },
+          "batch": {
+            "song_request": 0.04
+          }
+        }
+      }
+    },
+    "lyria-3-clip-preview": {
+      "display_name": "Lyria 3 Clip Preview",
+      "role": "music_generator",
+      "description": "Synthesizes 30-second loopable high-energy stadium entrance music tracks.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/lyria-3-clip-preview",
+      "supported_channels": [
+        "ai_studio"
+      ],
+      "status": "preview",
+      "recommended_replacement": "lyria-3.5",
+      "version_rank": 3.0,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "song_request": 0.04
+          },
+          "batch": {
+            "song_request": 0.04
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "song_request": 0.04
+          },
+          "batch": {
+            "song_request": 0.04
+          }
+        }
+      }
+    },
+    "lyria-3-pro-preview": {
+      "display_name": "Lyria 3 Pro Preview",
+      "role": "music_generator",
+      "description": "High-fidelity arena background entrance music tracks.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/lyria-3-pro-preview",
+      "supported_channels": [
+        "ai_studio"
+      ],
+      "status": "preview",
+      "recommended_replacement": "lyria-3.5",
+      "version_rank": 3.0,
+      "rates": {
+        "ai_studio": {
+          "standard": {
+            "song_request": 0.08
+          },
+          "batch": {
+            "song_request": 0.08
+          }
+        },
+        "vertex_ai": {
+          "standard": {
+            "song_request": 0.08
+          },
+          "batch": {
+            "song_request": 0.08
+          }
+        }
+      }
+    }
   },
   "platforms": {
     "ai_studio": {
       "standard": {
+        "gemini-3.8-flash": {
+          "input_1m": 1.5,
+          "output_1m": 7.5,
+          "cache_1m": 0.15
+        },
         "gemini-3.6-flash": {
           "input_1m": 1.5,
           "output_1m": 7.5,
@@ -33,9 +393,20 @@
           "output_1m": 2.5,
           "cache_1m": 0.03
         },
+        "gemini-3.8-flash-tts": {
+          "input_1m": 0.5,
+          "output_1m": 10.0
+        },
+        "gemini-3.8-flash-lite-tts": {
+          "input_1m": 0.3,
+          "output_1m": 5.0
+        },
         "gemini-3.1-flash-tts-preview": {
           "input_1m": 0.5,
           "output_1m": 10.0
+        },
+        "lyria-3.5": {
+          "song_request": 0.04
         },
         "lyria-3-clip-preview": {
           "song_request": 0.04
@@ -45,6 +416,11 @@
         }
       },
       "batch": {
+        "gemini-3.8-flash": {
+          "input_1m": 0.75,
+          "output_1m": 3.75,
+          "cache_1m": 0.075
+        },
         "gemini-3.6-flash": {
           "input_1m": 0.75,
           "output_1m": 3.75,
@@ -60,9 +436,20 @@
           "output_1m": 1.25,
           "cache_1m": 0.02
         },
+        "gemini-3.8-flash-tts": {
+          "input_1m": 0.5,
+          "output_1m": 10.0
+        },
+        "gemini-3.8-flash-lite-tts": {
+          "input_1m": 0.3,
+          "output_1m": 5.0
+        },
         "gemini-3.1-flash-tts-preview": {
           "input_1m": 0.5,
           "output_1m": 10.0
+        },
+        "lyria-3.5": {
+          "song_request": 0.04
         },
         "lyria-3-clip-preview": {
           "song_request": 0.04
@@ -74,6 +461,11 @@
     },
     "vertex_ai": {
       "standard": {
+        "gemini-3.8-flash": {
+          "input_1m": 1.5,
+          "output_1m": 7.5,
+          "cache_1m": 0.15
+        },
         "gemini-3.6-flash": {
           "input_1m": 1.5,
           "output_1m": 7.5,
@@ -89,9 +481,20 @@
           "output_1m": 2.5,
           "cache_1m": 0.03
         },
+        "gemini-3.8-flash-tts": {
+          "input_1m": 0.5,
+          "output_1m": 9.0
+        },
+        "gemini-3.8-flash-lite-tts": {
+          "input_1m": 0.5,
+          "output_1m": 9.0
+        },
         "gemini-3.1-flash-tts-preview": {
-          "input_1m": 1.0,
-          "output_1m": 20.0
+          "input_1m": 0.5,
+          "output_1m": 9.0
+        },
+        "lyria-3.5": {
+          "song_request": 0.04
         },
         "lyria-3-clip-preview": {
           "song_request": 0.04
@@ -101,6 +504,11 @@
         }
       },
       "batch": {
+        "gemini-3.8-flash": {
+          "input_1m": 0.75,
+          "output_1m": 3.75,
+          "cache_1m": 0.075
+        },
         "gemini-3.6-flash": {
           "input_1m": 0.75,
           "output_1m": 3.75,
@@ -116,9 +524,20 @@
           "output_1m": 1.25,
           "cache_1m": 0.02
         },
+        "gemini-3.8-flash-tts": {
+          "input_1m": 0.5,
+          "output_1m": 9.0
+        },
+        "gemini-3.8-flash-lite-tts": {
+          "input_1m": 0.5,
+          "output_1m": 9.0
+        },
         "gemini-3.1-flash-tts-preview": {
-          "input_1m": 1.0,
-          "output_1m": 20.0
+          "input_1m": 0.5,
+          "output_1m": 9.0
+        },
+        "lyria-3.5": {
+          "song_request": 0.04
         },
         "lyria-3-clip-preview": {
           "song_request": 0.04
@@ -130,6 +549,11 @@
     }
   },
   "rates": {
+    "gemini-3.8-flash": {
+      "input_1m": 1.5,
+      "output_1m": 7.5,
+      "cache_1m": 0.15
+    },
     "gemini-3.6-flash": {
       "input_1m": 1.5,
       "output_1m": 7.5,
@@ -145,9 +569,20 @@
       "output_1m": 2.5,
       "cache_1m": 0.03
     },
+    "gemini-3.8-flash-tts": {
+      "input_1m": 0.5,
+      "output_1m": 10.0
+    },
+    "gemini-3.8-flash-lite-tts": {
+      "input_1m": 0.3,
+      "output_1m": 5.0
+    },
     "gemini-3.1-flash-tts-preview": {
       "input_1m": 0.5,
       "output_1m": 10.0
+    },
+    "lyria-3.5": {
+      "song_request": 0.04
     },
     "lyria-3-clip-preview": {
       "song_request": 0.04

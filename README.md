@@ -6,7 +6,7 @@ An automated Python tool to create professional, stadium-quality audio introduct
 
 ## 🌟 Features
 
-- **Google Gemini & Lyria AI Audio Stack**: Synthesize rapid-fire stadium announcer voice clips (`gemini-3.1-flash-tts-preview`), AI announcer script polishing (`gemini-3.6-flash`), and entrance music tracks (`lyria-3-clip-preview`, `lyria-3-pro-preview`).
+- **Google Gemini & Lyria AI Audio Stack**: Synthesize rapid-fire stadium announcer voice clips (`gemini-3.8-flash-tts`), AI announcer script polishing (`gemini-3.8-flash`), and entrance music tracks (`lyria-3.5`, `lyria-3-pro-preview`).
 - **High-Efficiency API Request Batching**: Reduces API calls from ~44 down to **2–3 requests per team run** via batched LLM JSON script enhancement and `pydub.silence` audio slicing, preventing Free Tier quota exhaustion (10 RPM / 100 RPD).
 - **Multi-Platform AI Backend Support**: Seamlessly switch between **Google AI Studio** (`generativelanguage.googleapis.com`) and **Google Cloud Vertex AI** (`vertexai=True`) using GCP API keys or Application Default Credentials (ADC).
 - **Dynamic Rate Limit Retry Delay Parsing**: Automatically extracts exact retry wait durations (e.g. `1h47m9s`) from 429 `RESOURCE_EXHAUSTED` API errors instead of arbitrary sleep times.
@@ -106,11 +106,11 @@ Maintain team rosters, announcer voice styles, music prompts, and model choices 
 
 ### 🤖 Model & Script Enhancement Settings (`models` block)
 Configure default AI models and script enhancement behavior directly in JSON:
-- `tts_model`: Text-to-Speech voice model (`gemini-3.1-flash-tts-preview`, `gemini-3.5-flash`).
-- `llm_model`: Script synthesizer model (`gemini-3.6-flash`, `gemini-3.5-flash-lite`).
-- `music_model`: Background music model (`lyria-3-clip-preview`, `lyria-3-pro-preview`).
+- `tts_model`: Text-to-Speech voice model (`gemini-3.8-flash-tts`, `gemini-3.5-flash`).
+- `llm_model`: Script synthesizer model (`gemini-3.8-flash`, `gemini-3.5-flash-lite`).
+- `music_model`: Background music model (`lyria-3.5`, `lyria-3-pro-preview`).
 - `enhance_scripts`: Controls LLM announcer script polishing (`"auto"`, `"always"`, or `"never"`):
-  - **`"auto"` (Default)**: Automatically invokes `llm_model` (`gemini-3.6-flash`) ONLY for clips/players that do **not** have manual `phonetic` or `phonetic_number` overrides.
+  - **`"auto"` (Default)**: Automatically invokes `llm_model` (`gemini-3.8-flash`) ONLY for clips/players that do **not** have manual `phonetic` or `phonetic_number` overrides.
   - **`"always"`**: Forces LLM script enhancement across all items.
 - `batch_script_enhancement`: Batches script enhancement requests into a single JSON API call (`true` by default).
 - `batch_tts`: Batches TTS requests and slices audio via `pydub.silence` (`true` by default).
@@ -127,9 +127,9 @@ Add optional keys to any player entry in `roster_templates.json` to customize pr
 ```json
 {
   "models": {
-    "tts_model": "gemini-3.1-flash-tts-preview",
-    "llm_model": "gemini-3.6-flash",
-    "music_model": "lyria-3-clip-preview",
+    "tts_model": "gemini-3.8-flash-tts",
+    "llm_model": "gemini-3.8-flash",
+    "music_model": "lyria-3.5",
     "enhance_scripts": "auto",
     "batch_script_enhancement": true,
     "batch_tts": true,
@@ -213,8 +213,8 @@ Audition sample audio generator for prebuilt Gemini voices:
 ```text
   -o, --output-dir DIR  Directory for voice samples (default: samples)
   --sample-text TEXT    Sample announcement text
-  --tts-model MODEL     Gemini TTS model (default: gemini-3.1-flash-tts-preview)
-  --llm-model MODEL     Gemini LLM model (default: gemini-3.6-flash)
+  --tts-model MODEL     Gemini TTS model (default: gemini-3.8-flash-tts)
+  --llm-model MODEL     Gemini LLM model (default: gemini-3.8-flash)
   --voices VOICES       Comma-separated list of voices (default: Puck,Charon,Kore,Fenrir,Aoede)
   --theme-context TEXT, --announcer-theme TEXT
                         Optional theme/personality context for script synthesis (e.g. pirate, space commander)
@@ -235,9 +235,9 @@ Generates voice clips and entrance music via Gemini & Lyria APIs:
                         Path to roster template config JSON (default: roster_templates.json)
   --output-dir DIR      Directory for generated voice clips (default: input)
   --music-dir DIR       Directory for generated music clips (default: music)
-  --tts-model MODEL     Gemini TTS model (default: gemini-3.1-flash-tts-preview)
-  --llm-model MODEL     Gemini LLM model (default: gemini-3.6-flash)
-  --music-model MODEL   Lyria Music model (default: lyria-3-clip-preview)
+  --tts-model MODEL     Gemini TTS model (default: gemini-3.8-flash-tts)
+  --llm-model MODEL     Gemini LLM model (default: gemini-3.8-flash)
+  --music-model MODEL   Lyria Music model (default: lyria-3.5)
   --voice VOICE         Prebuilt voice persona (Puck, Charon, Kore, Fenrir, Aoede)
   --theme-context TEXT, --announcer-theme TEXT
                         Optional theme/personality context for script synthesis & voice prompts (e.g. pirate, space commander)
@@ -293,10 +293,10 @@ The project utilizes specific Google Gemini and Lyria AI models tailored for dis
 
 | Model | Primary Purpose | Why It Is Used | Pros | Cons / Trade-offs |
 | :--- | :--- | :--- | :--- | :--- |
-| **`gemini-3.1-flash-tts-preview`** *(Default TTS)* | **Text-to-Speech Voice Clips** | Native TTS synthesis for PA announcer voice clips and player intros with built-in voice personas (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`). | Ultra-low latency, native audio generation, vibrant prebuilt stadium voice personas. | Preview model API surface. |
-| **`gemini-3.6-flash`** *(Default LLM)* | **Announcer Prompt & Script Synthesis** | Dynamic prompt expansion, phonetic script formatting, and high-energy announcer inflection reasoning. | Latest Flash model with lower output pricing ($7.50/1M output including thinking vs $9.00/1M for 3.5), superior prompt instruction adherence. | Slightly higher input cost than Flash-Lite ($1.50 vs $0.30/1M). |
+| **`gemini-3.8-flash-tts`** *(Default TTS)* | **Text-to-Speech Voice Clips** | Native TTS synthesis for PA announcer voice clips and player intros with built-in voice personas (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`). | Ultra-low latency, native audio generation, vibrant prebuilt stadium voice personas. | Preview model API surface. |
+| **`gemini-3.8-flash`** *(Default LLM)* | **Announcer Prompt & Script Synthesis** | Dynamic prompt expansion, phonetic script formatting, and high-energy announcer inflection reasoning. | Latest Flash model with lower output pricing ($7.50/1M output including thinking vs $9.00/1M for 3.5), superior prompt instruction adherence. | Slightly higher input cost than Flash-Lite ($1.50 vs $0.30/1M). |
 | **`gemini-3.5-flash-lite`** *(Alternative LLM)* | **Lightweight Script Formatting** | Cost-optimized script formatting for simple template rendering. | Lowest input/output cost ($0.30 input / $2.50 output per 1M tokens), high throughput. | Less expressive prompt enhancement compared to 3.6 Flash. |
-| **`lyria-3-clip-preview`** *(Default Music)* | **Stadium Entrance Music Tracks** | Generates 30-second loopable high-energy arena rock background music tracks tailored for sports intros. | Fast generation, optimized for short loopable background tracks ($0.04/song). | Max 30s clips per generation. |
+| **`lyria-3.5`** *(Default Music)* | **Stadium Entrance Music Tracks** | Generates 30-second loopable high-energy arena rock background music tracks tailored for sports intros. | Fast generation, optimized for short loopable background tracks ($0.04/song). | Max 30s clips per generation. |
 | **`lyria-3-pro-preview`** *(Pro Music)* | **Production-Grade Entrance Music** | High-fidelity stadium entrance track generation with richer instrumentation. | Premium audio mastering quality and complex instrumentation ($0.08/song). | Double the cost of clip-preview ($0.08/song). |
 
 ---
@@ -325,9 +325,9 @@ The script parses live rates from:
 
 ### 📊 Full Intro Generation Cost Comparison (Sample 18-Player Team Run)
 
-Below is an estimated cost comparison for generating a complete team intro (23 voice clips, 4 LLM enhanced announcer scripts via `gemini-3.6-flash`, and 1 Lyria entrance music track):
+Below is an estimated cost comparison for generating a complete team intro (23 voice clips, 4 LLM enhanced announcer scripts via `gemini-3.8-flash`, and 1 Lyria entrance music track):
 
-| Execution Platform & Mode | LLM Scripting Rate (`gemini-3.6-flash`) | TTS Voice Rate (`gemini-3.1-flash-tts-preview`) | Music Rate (`lyria-3-clip-preview`) | Sample Total Generation Cost |
+| Execution Platform & Mode | LLM Scripting Rate (`gemini-3.8-flash`) | TTS Voice Rate (`gemini-3.8-flash-tts`) | Music Rate (`lyria-3.5`) | Sample Total Generation Cost |
 | :--- | :--- | :--- | :--- | :--- |
 | **Google AI Studio (Standard API)** | $1.50 in / $7.50 out | $0.50 in / $10.00 out | $0.0400 / request | **~$0.0770 USD** |
 | **Google AI Studio (Batch API - 50% Off LLM)** | **$0.75 in / $3.75 out** | $0.50 in / $10.00 out | $0.0400 / request | **~$0.0762 USD** |

@@ -41,12 +41,103 @@ def log_api_event(category, action, details="", log_path="logs/api_execution.log
         pass
 
 # Default Models & Voice Persona
-DEFAULT_TTS_MODEL = "gemini-3.1-flash-tts-preview"
-DEFAULT_LLM_MODEL = "gemini-3.6-flash"
-DEFAULT_MUSIC_MODEL = "lyria-3-clip-preview"
+DEFAULT_TTS_MODEL = "gemini-3.8-flash-tts"
+DEFAULT_LLM_MODEL = "gemini-3.8-flash"
+DEFAULT_MUSIC_MODEL = "lyria-3.5"
 DEFAULT_VOICE_PERSONA = "Puck"
 DEFAULT_ENHANCE_MODE = "auto"
 DEFAULT_AUDIO_TAGS = "[excitedly, fast-paced]"
+
+def check_model_status(model_name: str, category: str = "general", json_path: str = "config/cost_rates.json") -> dict:
+    """
+    Checks the lifecycle status of a model in config/cost_rates.json.
+    Returns a dict with:
+      - is_active: bool (True only if status == 'active')
+      - status: str ('active', 'preview', 'legacy', 'unknown')
+      - recommendation: Optional[str]
+      - warning_message: Optional[str]
+    """
+    if not model_name:
+        return {"is_active": True, "status": "active", "recommendation": None, "warning_message": None}
+
+    tracked = {}
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                tracked = data.get("tracked_models", {})
+        except Exception:
+            pass
+
+    meta = tracked.get(model_name, {})
+    status = meta.get("status", "unknown").lower()
+    recommended_model = meta.get("recommended_replacement")
+
+    # If no explicit recommendation, find the active model for this category
+    if not recommended_model:
+        if "tts" in model_name or category in ["tts", "tts_voice", "voice"]:
+            recommended_model = DEFAULT_TTS_MODEL
+        elif "lyria" in model_name or category in ["music", "music_generator"]:
+            recommended_model = DEFAULT_MUSIC_MODEL
+        else:
+            recommended_model = DEFAULT_LLM_MODEL
+
+    if status == "active":
+        return {
+            "is_active": True,
+            "status": "active",
+            "recommendation": None,
+            "warning_message": None
+        }
+
+    warning_lines = []
+    if status == "preview":
+        warning_lines.append(f"⚠️  WARNING: Model '{model_name}' is currently in PREVIEW status.")
+        warning_lines.append(f"   • Disclaimer: Preview models have experimental API surfaces and are subject to breaking changes or quota caps.")
+        if recommended_model and recommended_model != model_name:
+            warning_lines.append(f"   • Recommendation: Switch to active GA model '{recommended_model}' for stadium-grade stability.")
+    elif status == "legacy":
+        warning_lines.append(f"⚠️  WARNING: Model '{model_name}' is currently a LEGACY model.")
+        warning_lines.append(f"   • Disclaimer: Legacy models may experience higher latency, older pricing rates, or future deprecation.")
+        if recommended_model and recommended_model != model_name:
+            warning_lines.append(f"   • Recommendation: Upgrade to active latest model '{recommended_model}'.")
+    else:
+        warning_lines.append(f"⚠️  NOTICE: Model '{model_name}' is not in our tracked active model catalog.")
+        if recommended_model:
+            warning_lines.append(f"   • Recommendation: Consider using active tracked model '{recommended_model}'.")
+
+    return {
+        "is_active": False,
+        "status": status,
+        "recommendation": recommended_model,
+        "warning_message": "\n".join(warning_lines)
+    }
+
+
+def warn_if_inactive_models(models_dict: dict, json_path: str = "config/cost_rates.json") -> bool:
+    """
+    Checks a dictionary of {role_or_category: model_name} and prints formatted warnings
+    if any selected model is not in 'active' status.
+    Returns True if any non-active model was detected.
+    """
+    warnings = []
+    for role, model_name in models_dict.items():
+        if not model_name:
+            continue
+        info = check_model_status(model_name, category=role, json_path=json_path)
+        if not info["is_active"] and info["warning_message"]:
+            warnings.append(info["warning_message"])
+
+    if warnings:
+        print("\n" + "=" * 70)
+        print("🚨 NON-ACTIVE MODEL SELECTION DISCLAIMER & RECOMMENDATIONS")
+        print("=" * 70)
+        for w in warnings:
+            print(w)
+            print()
+        print("=" * 70 + "\n")
+        return True
+    return False
 
 def print_pricing_disclaimer(use_vertex=False, has_tts=True, has_llm=True, has_music=True, json_path="config/cost_rates.json"):
     """
