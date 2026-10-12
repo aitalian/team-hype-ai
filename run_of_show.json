@@ -1,7 +1,7 @@
 {
   "settings": {
     "music_folder": "music",
-    "music_file": "background_music.mp3",
+    "music_file": "background_music-lyria3.5-devfestmtl.mp3",
     "music_volume_db": -6,
     "music_start_time_ms": 0,
     "music_end_time_ms": 0,
@@ -16,6 +16,14 @@
     "output_filename": "devfest_montreal_80s_assembled.mp3"
   },
   "sequence": [
+    {
+      "file": "sfx_canadiens-de-montreal.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 0,
+      "clip_duration_ms": 4500,
+      "thicken": false
+    },
     {
       "file": "Welcome to DevFest.wav",
       "ducking": false,
@@ -34,6 +42,13 @@
       "file": "For Your CANADIENS.wav",
       "ducking": false,
       "pre_delay_ms": 200,
+      "post_delay_ms": 200,
+      "thicken": false
+    },
+    {
+      "file": "sfx_crowd-cheer-and-applause.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
       "post_delay_ms": 400,
       "thicken": false
     },

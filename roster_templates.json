@@ -21,6 +21,14 @@
   "player_template": "Number {number}, <short pause> {name}!",
   "roster": [
     {
+      "number": "33",
+      "name": "Patrick Roy",
+      "phonetic": "Pat-REEK RWAH",
+      "custom_intro": "Stopping all the pucks, the rookie sensation in net, Conn Smythe Trophy winner, <short pause> wearing number {number}, Saint Patrick, {phonetic}!",
+      "audio_tags": "excitedly, very fast Quebec arena announcer",
+      "post_delay_ms": 1500
+    },
+    {
       "number": "24",
       "name": "Chris Chelios",
       "phonetic": "Chris CHEL-ee-os",
@@ -47,14 +55,6 @@
       "phonetic": "Bob GAY-nee",
       "custom_intro": "Your Team Captain, le Capitaine, <short pause> wearing number {number}, Captain {phonetic}!",
       "audio_tags": "shouting, high-energy Quebec stadium hype"
-    },
-    {
-      "number": "33",
-      "name": "Patrick Roy",
-      "phonetic": "Pat-REEK RWAH",
-      "custom_intro": "Stopping all the pucks, the rookie sensation in net, Conn Smythe Trophy winner, <short pause> wearing number {number}, Saint Patrick, {phonetic}!",
-      "audio_tags": "excitedly, very fast Quebec arena announcer",
-      "post_delay_ms": 1500
     }
   ],
   "intro_clips": [
@@ -90,7 +90,7 @@
     }
   ],
   "music": {
-    "filename": "background_music.mp3",
+    "filename": "background_music-lyria3.5-devfestmtl",
     "prompt": "High-energy 1980s retro arena rock sports entrance track featuring driving analog synthesizers, punchy gated reverb electronic drums, screaming electric guitar solos and power chords, 80s retro synthwave arpeggios, stadium crowd claps, and high-voltage upbeat tempo with no vocals.",
     "duration_seconds": 30,
     "max_duration_seconds": 90,
