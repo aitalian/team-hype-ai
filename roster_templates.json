@@ -9,143 +9,88 @@
     "tts_batch_size": 10
   },
   "announcer_persona": {
-    "style": "High-energy championship arena PA announcer",
-    "theme_context": "",
+    "style": "High-energy 1980s retro stadium rock PA announcer",
+    "theme_context": "1980s retro arena rock stadium theme for DevFest Montreal, celebrating the 1986 Stanley Cup Champion Montreal Canadiens. High-voltage, neon arena rock swagger, synthwave vibes, driving guitar riffs, and classic Montreal hockey arena hype with 80s PA announcer punch and enthusiasm.",
     "voice_name": "Puck",
     "audio_tags": "[excitedly, fast-paced]",
-    "prompt_prefix": "Say rapidly with intense, fast-paced stadium PA announcer energy, quick delivery, and high enthusiasm: "
+    "prompt_prefix": "Say rapidly with intense, fast-paced 1980s stadium PA announcer energy, retro arena swagger, quick delivery, and high enthusiasm: "
   },
   "player_template": "Number {number}, {name}!",
   "roster": [
     {
-      "number": "7",
-      "name": "Alex Smith",
-      "phonetic": "AL-ix Smith"
+      "number": "24",
+      "name": "Chris Chelios",
+      "phonetic": "Chris CHEL-ee-os",
+      "custom_intro": "Rocking the blueline, wearing number {number}, {phonetic}!",
+      "audio_tags": "[excitedly, fast-paced]"
     },
     {
-      "number": "16",
-      "name": "Jordan Taylor",
-      "phonetic": "JOR-dun Tay-lor"
-    },
-    {
-      "number": "22",
-      "name": "Sam Miller"
-    },
-    {
-      "number": "9",
-      "name": "Chris Johnson",
-      "pretext": "Alternate Captain"
-    },
-    {
-      "number": "41",
-      "name": "Pat Davis"
-    },
-    {
-      "number": "12",
-      "name": "Morgan Brown"
-    },
-    {
-      "number": "55",
-      "name": "Taylor Wilson",
-      "phonetic": "Tay-lor Will-sun"
+      "number": "26",
+      "name": "Mats Naslund",
+      "phonetic": "Mats NAHZ-lund",
+      "custom_intro": "Leading the scoring attack, wearing number {number}, the Little Viking, {phonetic}!",
+      "audio_tags": "[excitedly, fast-paced]"
     },
     {
       "number": "19",
-      "name": "Casey Jones",
-      "phonetic": "Kay-see Jones",
-      "pretext": "You know him as CJ"
+      "name": "Larry Robinson",
+      "phonetic": "LAIR-ee ROB-in-sun",
+      "custom_intro": "Hall of Fame legend on defense, wearing number {number}, Big Bird, {phonetic}!",
+      "audio_tags": "[excitedly, fast-paced]"
     },
     {
-      "number": "27",
-      "name": "Riley Anderson",
-      "phonetic": "Ry-lee An-der-sun"
+      "number": "23",
+      "name": "Bob Gainey",
+      "phonetic": "Bob GAY-nee",
+      "custom_intro": "Your Team Captain, wearing number {number}, Captain {phonetic}!",
+      "audio_tags": "[shouting, hype]"
     },
     {
-      "number": "34",
-      "name": "Jamie Thomas",
-      "phonetic": "Jay-me Tom-us",
-      "custom_intro": "Stopping all the pucks, your tendie, wearing number {number}, {phonetic}!"
-    },
-    {
-      "number": "71",
-      "name": "Avery White",
-      "phonetic": "Ay-ver-ee Whyte"
-    },
-    {
-      "number": "30",
-      "name": "Dakota Harris",
-      "phonetic": "Duh-KOH-tuh HAIR-iss",
-      "pretext": "Rookie of the year, wearing number {number}, {phonetic}!",
-      "post_delay_ms": 1500
-    },
-    {
-      "number": "87",
-      "name": "Reese Martin",
-      "custom_intro": "Alternate captain, wearing number {number}, the one, the only, {name}!"
-    },
-    {
-      "number": "14",
-      "name": "Lochlane Thompson",
-      "phonetic": "Lock-lin Tom-sun"
-    },
-    {
-      "number": "67",
-      "name": "Peyton Garcia",
-      "phonetic_number": "Six. Sev-uhn."
-    },
-    {
-      "number": "88",
-      "name": "Skyler Martinez"
-    },
-    {
-      "number": "91",
-      "name": "Logan Robinson",
-      "phonetic": "LOW-gun ROB-in-sun"
-    },
-    {
-      "number": "98",
-      "name": "Drew Clark",
-      "custom_intro": "Your Team Captain, wearing number {number}, Mr. {name}!",
-      "audio_tags": "[shouting, hype]",
+      "number": "33",
+      "name": "Patrick Roy",
+      "phonetic": "PAT-rik WAH",
+      "custom_intro": "Stopping all the pucks, the rookie sensation in net, Conn Smythe Trophy winner, wearing number {number}, Saint Patrick, {phonetic}!",
+      "audio_tags": "[excitedly, very fast]",
       "post_delay_ms": 1500
     }
   ],
   "intro_clips": [
     {
-      "filename": "It's Time.wav",
-      "text": "It's time!",
-      "phonetic": "It's. Tyme.",
+      "filename": "Welcome to DevFest.wav",
+      "text": "Welcome to DevFest Montreal! Step back to 1986!",
+      "phonetic": "Welcome to Dev-Fest Montreal! Step back to 1986!",
       "audio_tags": "[excitedly]"
     },
     {
       "filename": "Make Some Noise.wav",
-      "text": "Make some noise!",
-      "phonetic": "Mey-k. Sum. Noyz!",
+      "text": "Montreal, make some noise!",
+      "phonetic": "Montreal, mey-k sum noyz!",
       "audio_tags": "[shouting]"
     },
     {
-      "filename": "For Your EAAAAGLES.wav",
-      "text": "For your Eagles!",
-      "phonetic": "For your eeeeee-guuuhhh-llz!",
+      "filename": "For Your CANADIENS.wav",
+      "text": "For your 1986 Stanley Cup Champions, your Montreal Canadiens!",
+      "phonetic": "For your 1986 Stanley Cup Champions, your Montreal Canadiens!",
       "audio_tags": "[excitedly, very fast]"
     },
     {
-      "filename": "Hitting the Ice.wav",
-      "text": "Hitting the ice!",
-      "phonetic": "Hitt-ing thuh ice!"
+      "filename": "Hitting the Forum Ice.wav",
+      "text": "Hitting the Montreal Forum ice!",
+      "phonetic": "Hitt-ing thuh Montreal Forum ice!",
+      "audio_tags": "[excitedly, fast-paced]"
     },
     {
-      "filename": "LETS GO EAGLES.wav",
-      "text": "Let's go Eagles!",
-      "phonetic": "LET'S GOOOOOOOOOO Eagles!",
+      "filename": "GO HABS GO.wav",
+      "text": "Go Habs Go! Let's go DevFest!",
+      "phonetic": "GO HABS GOOOOO! Let's go Dev-Fest!",
       "audio_tags": "[shouting, hype]"
     }
   ],
   "music": {
     "filename": "background_music.mp3",
-    "prompt": "Seamless 30-second loopable high-energy EDM dance music with hard driving bass undertones, stadium crowd sounds mixed in, upbeat, high energy and hype tones, no vocals, with an occasional loud crash, boom, or siren/horn sound mixed in the background.",
+    "prompt": "High-energy 1980s retro arena rock sports entrance track featuring driving analog synthesizers, punchy gated reverb electronic drums, screaming electric guitar solos and power chords, 80s retro synthwave arpeggios, stadium crowd claps, and high-voltage upbeat tempo with no vocals.",
     "duration_seconds": 30,
-    "max_duration_seconds": 120,
+    "max_duration_seconds": 90,
     "loopable": true
   }
 }
