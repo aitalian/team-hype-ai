@@ -114,6 +114,7 @@ from common import (
     DEFAULT_AUDIO_TAGS,
     clean_spoken_text,
     clean_style_directive,
+    format_speech_style,
     build_speech_part,
 )
 
@@ -128,14 +129,16 @@ def format_audio_tag(tag):
     return clean_style_directive(str(tag).strip())
 
 
-def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", audio_tag="", max_retries=3):
+def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", audio_tag="", regional_accent="", accent_guidance="", max_retries=3):
     """
     Uses LLM (e.g. gemini-3.8-flash) to rewrite and format plain text into rapid-fire, high-energy PA announcer scripts
     with phonetic inflections, concise drawn-out vowels, and PA stadium emphasis cues prior to TTS generation.
-    Observes delivery instructions and audio tags for tone, but strictly outputs clean speech text without tags or prompt prefixes.
+    Observes delivery instructions, regional accent guidance, and audio tags for tone, but strictly outputs clean speech text without tags or prompt prefixes.
     """
     delivery_str = f"Delivery & Cadence Instructions: {delivery_instructions}\n" if delivery_instructions else ""
     tone_str = f"Desired Tone / Energy Cue: {audio_tag}\n" if audio_tag else ""
+    accent_info = accent_guidance or (f"Authentic {regional_accent} regional pronunciation for regional/French names and places" if regional_accent else "")
+    accent_str = f"Regional Accent & Pronunciation Instructions: {accent_info}\nWhen Francophone names, places, or hockey terms (e.g. Montréal, Canadiens, Patrick Roy, Forum) appear, ensure they are phoneticized or phrased with authentic French Canadian / Quebec regional pronunciation while maintaining stadium rock announcer cadence.\n\n" if accent_info else ""
     theme_str = f"Theme & Context Instructions: {theme_context}\nIncorporate thematic phrasing, tone accents, vocabulary, or puns matching this theme while keeping speech punchy and stadium-ready.\n\n" if theme_context else ""
 
     prompt = (
@@ -143,12 +146,13 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
         f"Style: {persona_style}.\n\n"
         f"{delivery_str}"
         f"{tone_str}"
+        f"{accent_str}"
         f"{theme_str}"
         f"Rewrite the following announcement text into a concise, rapid-fire, high-energy stadium PA script "
         f"for Google Gemini 3.8 Flash TTS speech synthesis. Keep delivery fast-paced, quick, and punchy. Use UPPERCASE for strong stadium emphasis, "
         f"drawn-out vowels ONLY for key player names, and clear punctuation (commas, exclamation points) to guide rapid pitch, volume, and inflection.\n\n"
         f"CRITICAL REQUIREMENTS FOR GEMINI 3.8 TTS VERBATIM MODEL:\n"
-        f"1. Infuse the delivery instructions, tone cues, and theme directly into the rhythm, casing, and phrasing of the spoken dialogue.\n"
+        f"1. Infuse the delivery instructions, tone cues, regional accent guidance, and theme directly into the rhythm, casing, and phrasing of the spoken dialogue.\n"
         f"2. You MAY insert '<short pause>' inline for dramatic stadium timing or breathing pauses before big announcements where appropriate.\n"
         f"3. Output ONLY the clean script text to be spoken. Do NOT include explanations, quotes, prompt prefixes (such as 'Say rapidly...'), or bracketed audio tags (e.g. NEVER output [excitedly] or [shouting]) in your output text.\n\n"
         f"Input Text: {clean_spoken_text(raw_text, allow_vocal_tags=True)}"
@@ -181,7 +185,7 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
     return clean_spoken_text(raw_text, allow_vocal_tags=True)
 
 
-def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", max_retries=3):
+def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", regional_accent="", accent_guidance="", max_retries=3):
     """
     Uses LLM (e.g. gemini-3.8-flash) in a single API call to rewrite multiple raw scripts in batch into a JSON mapping.
     items_to_enhance: list of dicts [{'id': key, 'raw_text': text, 'audio_tag': tag}]
@@ -199,17 +203,20 @@ def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona
     prompt_json_str = json.dumps(prompt_payload, indent=2)
 
     delivery_str = f"Delivery & Cadence Instructions: {delivery_instructions}\n" if delivery_instructions else ""
+    accent_info = accent_guidance or (f"Authentic {regional_accent} regional pronunciation for regional/French names and places" if regional_accent else "")
+    accent_str = f"Regional Accent & Pronunciation Instructions: {accent_info}\nWhen Francophone names, places, or hockey terms (e.g. Montréal, Canadiens, Patrick Roy, Forum) appear, ensure they are phoneticized or phrased with authentic French Canadian / Quebec regional pronunciation while maintaining stadium rock announcer cadence.\n\n" if accent_info else ""
     theme_str = f"Theme & Context Instructions: {theme_context}\nIncorporate thematic phrasing, tone accents, vocabulary, or puns matching this theme while keeping speech punchy and stadium-ready.\n\n" if theme_context else ""
 
     prompt = (
         f"You are a professional PA sports announcer script writer. Style: {persona_style}.\n\n"
         f"{delivery_str}"
+        f"{accent_str}"
         f"{theme_str}"
         f"Rewrite each announcement text in the input JSON into a concise, rapid-fire, high-energy stadium PA script "
         f"for Google Gemini 3.8 Flash TTS speech synthesis.\n"
         f"Keep delivery fast-paced, quick, and punchy. Use UPPERCASE for strong stadium emphasis, "
         f"drawn-out vowels ONLY for key player names, and clear punctuation (commas, exclamation points) to guide rapid pitch, volume, and inflection.\n"
-        f"Observe the tone cues and delivery instructions to shape the vocal energy, enthusiasm, and stadium excitement directly through phrasing and typography.\n\n"
+        f"Observe the tone cues, regional accent guidance, and delivery instructions to shape the vocal energy, enthusiasm, and stadium excitement directly through phrasing and typography.\n\n"
         f"CRITICAL REQUIREMENTS FOR GEMINI 3.8 TTS VERBATIM MODEL:\n"
         f"1. Output ONLY the clean script text to be vocalized by the speech synthesizer.\n"
         f"2. You MAY insert '<short pause>' inline for dramatic stadium timing or breathing pauses before big announcements where appropriate.\n"
@@ -787,6 +794,7 @@ def main():
     parser.add_argument("--voice", default=None, help=f"Prebuilt Gemini voice persona (default: {DEFAULT_VOICE_PERSONA} or config announcer_persona.voice_name)")
     parser.add_argument("--audio-tags", default=None, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS} or config announcer_persona.audio_tags)")
     parser.add_argument("--theme-context", "--announcer-theme", default=None, help="Optional theme/personality context for script synthesis & voice prompts (e.g. pirate, space commander)")
+    parser.add_argument("--regional-accent", "--accent", default=None, help="Optional regional accent guidance for speech delivery and pronunciation (e.g. 'French Canadian', 'Boston')")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=None, help=f"LLM script enhancement mode: auto (only clips without manual phonetic overrides), always, or never (default: {DEFAULT_ENHANCE_MODE} or config enhance_scripts)")
     parser.add_argument("--batch-script", action="store_true", default=None, help="Batch LLM script enhancement requests into a single JSON API call (default: True)")
     parser.add_argument("--no-batch-script", action="store_false", dest="batch_script", help="Disable batched LLM script enhancement and fall back to 1:1 API requests")
@@ -882,6 +890,8 @@ def main():
             roster_enhancements.append(False)
 
     theme_context = args.theme_context or config.get("theme_context") or persona.get("theme_context") or persona.get("theme") or ""
+    regional_accent = args.regional_accent or config.get("regional_accent") or persona.get("regional_accent") or ""
+    accent_guidance = config.get("accent_guidance") or persona.get("accent_guidance") or ""
 
     print("🚀 TeamHypeAI - Sports Audio Generator")
     print(f"   Platform Backend:   {platform_desc}")
@@ -890,6 +900,8 @@ def main():
     print(f"   Music AI Model:     {music_model}")
     print(f"   Announcer Voice:    {voice_persona}")
     print(f"   Audio Tags:         {format_audio_tag(global_audio_tags)}")
+    if regional_accent:
+        print(f"   Regional Accent:    {regional_accent}")
     if theme_context:
         print(f"   Theme Context:      \"{theme_context}\"")
     print(f"   Batching Mode:      LLM Batch={batch_script}, TTS Batch={batch_tts} (batch_size={batch_size})")
@@ -908,7 +920,8 @@ def main():
             if is_missing:
                 num_voice_to_generate += 1
                 txt = build_intro_clip_announcement(clip)
-                clip_tag = format_audio_tag(clip.get("audio_tags") or clip.get("audio_tag")) or format_audio_tag(global_audio_tags)
+                raw_clip_tag = format_audio_tag(clip.get("audio_tags") or clip.get("audio_tag")) or format_audio_tag(global_audio_tags)
+                clip_tag = format_speech_style(raw_clip_tag, regional_accent=regional_accent, accent_guidance=accent_guidance)
                 to_generate_prompts.append(txt)
                 needs_enh = intro_enhancements[idx]
                 if needs_enh:
@@ -922,7 +935,8 @@ def main():
 
         for idx, p in enumerate(roster):
             fname, txt = build_player_announcement(p, player_template)
-            p_tag = format_audio_tag(p.get("audio_tags") or p.get("audio_tag")) or format_audio_tag(global_audio_tags)
+            raw_p_tag = format_audio_tag(p.get("audio_tags") or p.get("audio_tag")) or format_audio_tag(global_audio_tags)
+            p_tag = format_speech_style(raw_p_tag, regional_accent=regional_accent, accent_guidance=accent_guidance)
             full_p = os.path.join(args.output_dir, fname)
             is_missing = args.force or not (os.path.exists(full_p) and os.path.getsize(full_p) > 0)
             if is_missing:
@@ -978,7 +992,8 @@ def main():
             is_cached = not args.force and os.path.exists(out_p) and os.path.getsize(out_p) > 0
             cache_tag = " ⏩ [Existing File Cached - Will Skip]" if is_cached else ""
             txt = build_intro_clip_announcement(clip)
-            clip_tag = format_audio_tag(clip.get("audio_tags") or clip.get("audio_tag")) or format_audio_tag(global_audio_tags)
+            raw_clip_tag = format_audio_tag(clip.get("audio_tags") or clip.get("audio_tag")) or format_audio_tag(global_audio_tags)
+            clip_tag = format_speech_style(raw_clip_tag, regional_accent=regional_accent, accent_guidance=accent_guidance)
             enhance_tag = f" 🧠 [LLM Script Enhancement via {llm_model}]" if (intro_enhancements[idx] and not is_cached) else ""
             tag_info = f" [Speech Style: '{clip_tag}']" if clip_tag else ""
             print(f"📁 {fname} -> \"{txt}\"{tag_info}{enhance_tag}{cache_tag}")
@@ -986,7 +1001,8 @@ def main():
         print("\n--- ROSTER CLIPS ---")
         for idx, p in enumerate(roster):
             fname, txt = build_player_announcement(p, player_template)
-            p_tag = format_audio_tag(p.get("audio_tags") or p.get("audio_tag")) or format_audio_tag(global_audio_tags)
+            raw_p_tag = format_audio_tag(p.get("audio_tags") or p.get("audio_tag")) or format_audio_tag(global_audio_tags)
+            p_tag = format_speech_style(raw_p_tag, regional_accent=regional_accent, accent_guidance=accent_guidance)
             out_p = os.path.join(args.output_dir, fname)
             is_cached = not args.force and os.path.exists(out_p) and os.path.getsize(out_p) > 0
             cache_tag = " ⏩ [Existing File Cached - Will Skip]" if is_cached else ""
@@ -1048,7 +1064,9 @@ def main():
                     client, batch_payload, llm_model,
                     persona_style=persona.get("style", "High-energy stadium PA announcer"),
                     theme_context=theme_context,
-                    delivery_instructions=prefix
+                    delivery_instructions=prefix,
+                    regional_accent=regional_accent,
+                    accent_guidance=accent_guidance
                 )
 
                 if enhanced_map and isinstance(enhanced_map, dict):
@@ -1067,7 +1085,9 @@ def main():
                                 persona_style=persona.get("style", "High-energy stadium PA announcer"),
                                 theme_context=theme_context,
                                 delivery_instructions=prefix,
-                                audio_tag=item.get("audio_tag", "")
+                                audio_tag=item.get("audio_tag", ""),
+                                regional_accent=regional_accent,
+                                accent_guidance=accent_guidance
                             )
                             item["final_text"] = clean_spoken_text(enhanced, allow_vocal_tags=True)
                         else:
@@ -1081,7 +1101,9 @@ def main():
                             persona_style=persona.get("style", "High-energy stadium PA announcer"),
                             theme_context=theme_context,
                             delivery_instructions=prefix,
-                            audio_tag=item.get("audio_tag", "")
+                            audio_tag=item.get("audio_tag", ""),
+                            regional_accent=regional_accent,
+                            accent_guidance=accent_guidance
                         )
                         item["final_text"] = clean_spoken_text(enhanced, allow_vocal_tags=True)
                     else:
@@ -1091,7 +1113,8 @@ def main():
                 item["final_text"] = clean_spoken_text(item["raw_text"], allow_vocal_tags=True)
 
         # Step B: TTS Audio Generation (Batched Slicing vs 1:1 Fallback)
-        default_style = format_audio_tag(persona.get("audio_tags") or global_audio_tags)
+        raw_default_style = format_audio_tag(persona.get("audio_tags") or global_audio_tags)
+        default_style = format_speech_style(raw_default_style, regional_accent=regional_accent, accent_guidance=accent_guidance)
         if batch_tts:
             print(f"🔊 Generating {len(items_to_process)} voice clip(s) using batched TTS requests (batch size: {batch_size})...")
             # Chunk items into batches

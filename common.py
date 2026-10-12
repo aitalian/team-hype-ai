@@ -67,6 +67,31 @@ def clean_style_directive(style: str) -> str:
     return s
 
 
+def format_speech_style(base_style: str, regional_accent: str = None, accent_guidance: str = None) -> str:
+    """
+    Combines a base delivery style string with regional accent guidance for Gemini 3.8 Flash TTS speech_metadata.style.
+    Avoids duplicate phrases if the base_style already incorporates the accent.
+    """
+    clean_base = clean_style_directive(base_style)
+    accent = (regional_accent or "").strip()
+    if not accent:
+        return clean_base
+
+    # Check if accent already mentioned in base style
+    if accent.lower() in clean_base.lower():
+        return clean_base
+
+    if "french" in accent.lower() or "quebec" in accent.lower():
+        accent_clause = f"with a {accent} accent on French and Francophone names"
+    else:
+        accent_clause = f"with a {accent} accent"
+
+    if clean_base:
+        return f"{clean_base}, {accent_clause}"
+    return accent_clause
+
+
+
 def clean_spoken_text(text: str, prefix: str = "", allow_vocal_tags: bool = True) -> str:
     """
     Sanitizes dialogue text before feeding into Gemini 3.8 Flash TTS speech synthesis.

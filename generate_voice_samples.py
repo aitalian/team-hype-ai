@@ -29,6 +29,7 @@ from common import (
     DEFAULT_ENHANCE_MODE,
     DEFAULT_AUDIO_TAGS,
     clean_spoken_text,
+    format_speech_style,
 )
 from generate_gemini_audio import (
     generate_audio_clip_gemini,
@@ -103,6 +104,7 @@ def main():
     parser.add_argument("--featured-only", action="store_true", default=False, help="Only generate samples for core featured stadium voice personas (Puck, Charon, Kore, Fenrir, Aoede)")
     parser.add_argument("--audio-tags", default=DEFAULT_AUDIO_TAGS, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS})")
     parser.add_argument("--theme-context", "--announcer-theme", default=None, help="Optional theme/personality context for script synthesis (e.g. pirate, space commander)")
+    parser.add_argument("--regional-accent", "--accent", default=None, help="Optional regional accent guidance (e.g. 'French Canadian')")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=DEFAULT_ENHANCE_MODE, help="LLM script enhancement mode (default: auto)")
     parser.add_argument("--vertexai", action="store_true", default=False, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
     parser.add_argument("--gcp-project", "--project", default=None, help="Google Cloud Project ID for Vertex AI (default: GOOGLE_CLOUD_PROJECT or GCP_PROJECT env var)")
@@ -120,7 +122,9 @@ def main():
         if not featured_names:
             featured_names = ["Puck", "Charon", "Kore", "Fenrir", "Aoede"]
         voice_list = [v for v in voice_list if v in featured_names]
-    audio_tag = format_audio_tag(args.audio_tags)
+    regional_accent = args.regional_accent or ""
+    raw_audio_tag = format_audio_tag(args.audio_tags)
+    audio_tag = format_speech_style(raw_audio_tag, regional_accent=regional_accent)
 
     is_vertex = args.vertexai or os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
     if is_vertex:
@@ -144,6 +148,8 @@ def main():
     print(f"   TTS Model:        {args.tts_model}")
     print(f"   LLM Model:        {args.llm_model}")
     print(f"   Audio Tags:       {audio_tag}")
+    if regional_accent:
+        print(f"   Regional Accent:  {regional_accent}")
     print(f"   Sample Script:    \"{args.sample_text}\"")
 
     warn_if_inactive_models({
@@ -220,7 +226,8 @@ def main():
                 persona_style=persona_style,
                 theme_context=args.theme_context or "",
                 delivery_instructions=DEFAULT_PREFIX,
-                audio_tag=audio_tag
+                audio_tag=audio_tag,
+                regional_accent=regional_accent
             )
         else:
             prompt_text = clean_sample_text
