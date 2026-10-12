@@ -39,7 +39,7 @@ Run the local repository script in audit mode:
 ```bash
 python update_cost_rates.py --check
 ```
-*(Add `--vertexai` if evaluating models available on Vertex AI enterprise quotas).*
+*(Add `--vertexai` if evaluating models available on Vertex AI enterprise quotas, or `--aistudio` to force Google AI Studio).*
 
 ### Step 3: Compare & Recommend Newer Versions
 1. Compare API results against the `tracked_models` list in [`config/cost_rates.json`](config/cost_rates.json).

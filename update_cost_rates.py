@@ -118,14 +118,8 @@ def fetch_api_models(tracked_models: Dict[str, Any], use_vertexai: bool = False)
     Falls back gracefully to the cached models loaded from config/cost_rates.json.
     """
     try:
-        from google import genai
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if use_vertexai:
-            project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-            location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
-            client = genai.Client(vertexai=True, project=project, location=location)
-        else:
-            client = genai.Client(api_key=api_key)
+        from common import init_gemini_client
+        client = init_gemini_client(use_vertex=use_vertexai)
 
         models = []
         for model in client.models.list():
@@ -353,7 +347,9 @@ def main():
     parser.add_argument("--sync-readme", action="store_true", help="Synchronize model name references in README.md.")
     parser.add_argument("--dry-run", action="store_true", help="Preview pricing matrix updates without modifying files.")
     parser.add_argument("--json", action="store_true", help="Output comparison report in JSON format.")
-    parser.add_argument("--vertexai", action="store_true", help="Query models using Google Cloud Vertex AI infrastructure.")
+    platform_group = parser.add_mutually_exclusive_group()
+    platform_group.add_argument("--vertexai", action="store_true", default=None, help="Query models using Google Cloud Vertex AI infrastructure.")
+    platform_group.add_argument("--aistudio", "--ai-studio", "--no-vertexai", action="store_true", default=None, help="Force Google AI Studio infrastructure (overrides GOOGLE_GENAI_USE_VERTEXAI in .env).")
     args = parser.parse_args()
 
     # Default to check if no action specified
@@ -364,7 +360,9 @@ def main():
     config_data = load_config(config_path)
     tracked_models = config_data.get("tracked_models", {})
 
-    available_models = fetch_api_models(tracked_models=tracked_models, use_vertexai=args.vertexai)
+    from common import resolve_platform_backend
+    use_vertex, _, _, _ = resolve_platform_backend(cli_vertexai=args.vertexai, cli_aistudio=args.aistudio, config=config_data)
+    available_models = fetch_api_models(tracked_models=tracked_models, use_vertexai=use_vertex)
     comparison = compare_and_suggest_models(available_models, tracked_models)
 
     if args.json:

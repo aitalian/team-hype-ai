@@ -387,12 +387,80 @@ def get_model_cost_rates(model_name, category="voice", json_path="config/cost_ra
     return rates
 
 
+def resolve_platform_backend(cli_vertexai=None, cli_aistudio=None, config=None, gcp_project=None, gcp_location=None):
+    """
+    Centrally resolves whether to target Google Cloud Vertex AI or Google AI Studio across all CLI tools.
+    
+    Precedence:
+      1. Explicit CLI flag:
+         - cli_aistudio (True) -> False (Google AI Studio, strictly overrides .env)
+         - cli_vertexai (True) -> True (Google Cloud Vertex AI)
+      2. Config file settings (config):
+         - config.models.platform / config.platform == 'aistudio' -> False
+         - config.models.platform / config.platform in ['vertexai', 'vertex'] -> True
+         - config.models.vertexai / config.models.use_vertexai / config.vertexai -> bool
+      3. Environment variables:
+         - GOOGLE_GENAI_PLATFORM == 'aistudio' -> False
+         - GOOGLE_GENAI_PLATFORM in ['vertexai', 'vertex'] -> True
+         - GOOGLE_GENAI_USE_VERTEXAI in ['true', '1', 'yes'] -> True
+      4. Default: False (Google AI Studio)
+      
+    Returns:
+      tuple: (use_vertex: bool, platform_desc: str, project: Optional[str], location: Optional[str])
+    """
+    load_dotenv_if_present()
+
+    # 1. CLI flags take highest priority
+    if cli_aistudio:
+        use_vertex = False
+    elif cli_vertexai:
+        use_vertex = True
+    else:
+        # 2. Config file settings
+        cfg = config or {}
+        models_cfg = cfg.get("models", {}) if isinstance(cfg, dict) else {}
+        plat_cfg = str(cfg.get("platform") or models_cfg.get("platform") or "").lower().strip()
+
+        if plat_cfg in ["aistudio", "ai_studio", "studio"]:
+            use_vertex = False
+        elif plat_cfg in ["vertex", "vertexai", "vertex_ai"]:
+            use_vertex = True
+        else:
+            raw_cfg_vertex = cfg.get("vertexai", models_cfg.get("vertexai", models_cfg.get("use_vertexai", None)))
+            if raw_cfg_vertex is not None:
+                use_vertex = bool(raw_cfg_vertex)
+            else:
+                # 3. Environment variables
+                env_plat = os.environ.get("GOOGLE_GENAI_PLATFORM", "").lower().strip()
+                if env_plat in ["aistudio", "ai_studio", "studio"]:
+                    use_vertex = False
+                elif env_plat in ["vertex", "vertexai", "vertex_ai"]:
+                    use_vertex = True
+                else:
+                    env_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
+                    use_vertex = env_vertex
+
+    # Resolve GCP project & location parameters
+    cfg_obj = config or {}
+    m_cfg = cfg_obj.get("models", {}) if isinstance(cfg_obj, dict) else {}
+    resolved_proj = gcp_project or cfg_obj.get("gcp_project", m_cfg.get("gcp_project")) or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
+    resolved_loc = gcp_location or cfg_obj.get("gcp_location", m_cfg.get("gcp_location")) or os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("GCP_LOCATION", "us-central1")
+
+    if use_vertex:
+        proj_str = f" (Project: {resolved_proj}, Region: {resolved_loc})" if resolved_proj else f" (Region: {resolved_loc})"
+        platform_desc = f"Google Cloud Vertex AI{proj_str}"
+    else:
+        platform_desc = "Google AI Studio"
+
+    return use_vertex, platform_desc, resolved_proj, resolved_loc
+
+
 def init_gemini_client(api_key=None, use_vertex=None, project=None, location=None):
     """
     Initializes a google.genai.Client instance supporting both Google AI Studio and Vertex AI platforms.
     
     Resolution for Vertex AI mode:
-      use_vertex: CLI flag / explicit arg > GOOGLE_GENAI_USE_VERTEXAI env var ('true'/'1') > False
+      use_vertex: Explicit bool > GOOGLE_GENAI_PLATFORM > GOOGLE_GENAI_USE_VERTEXAI env var ('true'/'1') > False
       project: CLI flag / explicit arg > GOOGLE_CLOUD_PROJECT or GCP_PROJECT env var
       location: CLI flag / explicit arg > GOOGLE_CLOUD_LOCATION or GCP_LOCATION env var > 'us-central1'
     """
@@ -405,8 +473,16 @@ def init_gemini_client(api_key=None, use_vertex=None, project=None, location=Non
         print("   Please install via: pip install google-genai")
         sys.exit(1)
 
-    env_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
-    is_vertex = use_vertex if use_vertex is not None else env_vertex
+    if use_vertex is not None:
+        is_vertex = bool(use_vertex)
+    else:
+        env_plat = os.environ.get("GOOGLE_GENAI_PLATFORM", "").lower().strip()
+        if env_plat in ["aistudio", "ai_studio", "studio"]:
+            is_vertex = False
+        elif env_plat in ["vertex", "vertexai", "vertex_ai"]:
+            is_vertex = True
+        else:
+            is_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
 
     api_key_val = api_key or os.environ.get("GEMINI_API_KEY")
 
@@ -447,5 +523,6 @@ def init_gemini_client(api_key=None, use_vertex=None, project=None, location=Non
 
         print("🔑 GEMINI API Key detected (sourced from environment / .env). Initializing Google AI Studio client.")
         return genai.Client(api_key=api_key_val)
+
 
 

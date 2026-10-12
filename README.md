@@ -203,7 +203,7 @@ The Run of Show JSON defines event sequencing and timing using the **`$ROSTER`**
 ## 🛠️ CLI Reference Guide
 
 ### 1. `setup_wizard.py`
-Interactive step-by-step onboarding wizard for generating team configurations:
+Interactive step-by-step onboarding wizard for generating team configurations, announcer personas, and selecting the backend platform (Google AI Studio vs Google Cloud Vertex AI):
 ```text
 Usage: python3 setup_wizard.py
 ```
@@ -219,9 +219,13 @@ Audition sample audio generator for prebuilt Gemini voices:
   --featured-only       Generate samples only for core featured stadium personas (Puck, Charon, Kore, Fenrir, Aoede)
   --theme-context TEXT, --announcer-theme TEXT
                         Optional theme/personality context for script synthesis (e.g. pirate, space commander)
+  --regional-accent ACCENT, --accent ACCENT
+                        Regional accent guidance (e.g. "French Canadian")
   --enhance-scripts MODE
                         LLM script enhancement mode: auto, always, or never (default: auto)
   --vertexai            Use Google Cloud Vertex AI platform instead of Google AI Studio
+  --aistudio, --ai-studio, --no-vertexai
+                        Force Google AI Studio platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)
   --gcp-project PROJECT Google Cloud Project ID for Vertex AI
   --gcp-location REGION Google Cloud Region for Vertex AI (default: us-central1)
   -y, --yes             Automatically accept cost estimate & bypass confirmation prompt
@@ -242,6 +246,8 @@ Generates voice clips and entrance music via Gemini & Lyria APIs:
   --voice VOICE         Prebuilt voice persona (Puck, Charon, Kore, Fenrir, Aoede)
   --theme-context TEXT, --announcer-theme TEXT
                         Optional theme/personality context for script synthesis & voice prompts (e.g. pirate, space commander)
+  --regional-accent ACCENT, --accent ACCENT
+                        Regional accent guidance (e.g. "French Canadian")
   --enhance-scripts MODE
                         LLM script enhancement mode: auto, always, or never (default: auto)
   --batch-script / --no-batch-script
@@ -251,6 +257,8 @@ Generates voice clips and entrance music via Gemini & Lyria APIs:
   --batch-size N        Maximum voice clips per batched TTS request (default: 10)
   --legacy-mode         Shortcut to disable all batching and fall back to 1:1 API calls
   --vertexai            Use Google Cloud Vertex AI platform instead of Google AI Studio
+  --aistudio, --ai-studio, --no-vertexai
+                        Force Google AI Studio platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)
   --gcp-project PROJECT Google Cloud Project ID for Vertex AI
   --gcp-location REGION Google Cloud Region for Vertex AI (default: us-central1)
   -y, --yes             Automatically accept cost estimate & bypass confirmation prompt
@@ -276,6 +284,9 @@ Automatically fetches pricing from official Google documentation URLs and update
   --check               Audit local rates against official Google documentation
   --update              Fetch and update pricing matrix and metadata in config/cost_rates.json
   --sync-readme         Synchronize model references and table recommendations in README.md
+  --vertexai            Query models on Google Cloud Vertex AI backend
+  --aistudio, --ai-studio, --no-vertexai
+                        Force Google AI Studio platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)
 ```
 
 ### 6. `update_gemini_voices.py`

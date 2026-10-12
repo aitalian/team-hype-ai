@@ -132,7 +132,11 @@ def main():
         tts_batch_size = int(prompt_string("TTS Batch Size", "10"))
     except ValueError:
         tts_batch_size = 10
-    use_vertexai = prompt_string("Use Google Cloud Vertex AI Platform? (y/N)", "N").lower() in ["y", "yes"]
+    print("\nBackend AI Platform:")
+    print("  [1] Google AI Studio (Default - uses GEMINI_API_KEY)")
+    print("  [2] Google Cloud Vertex AI (Enterprise quotas - uses GCP project)")
+    plat_choice = prompt_string("Select Backend Platform [1/2]", "1").strip()
+    use_vertexai = plat_choice in ["2", "vertex", "vertexai"]
     gcp_project = prompt_string("GCP Project ID (optional for Vertex AI)", "") if use_vertexai else ""
     gcp_location = prompt_string("GCP Region Location", "us-central1") if use_vertexai else "us-central1"
 

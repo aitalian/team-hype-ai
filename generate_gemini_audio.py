@@ -116,6 +116,7 @@ from common import (
     clean_style_directive,
     format_speech_style,
     build_speech_part,
+    resolve_platform_backend,
 )
 
 
@@ -802,7 +803,9 @@ def main():
     parser.add_argument("--no-batch-tts", action="store_false", dest="batch_tts", help="Disable batched TTS generation and fall back to 1:1 API requests")
     parser.add_argument("--batch-size", type=int, default=None, help="Maximum number of voice clips per batched TTS request (default: 10)")
     parser.add_argument("--legacy-mode", action="store_true", help="Shortcut to disable all batching and fall back to legacy 1:1 API execution")
-    parser.add_argument("--vertexai", action="store_true", default=False, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
+    platform_group = parser.add_mutually_exclusive_group()
+    platform_group.add_argument("--vertexai", action="store_true", default=None, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
+    platform_group.add_argument("--aistudio", "--ai-studio", "--no-vertexai", action="store_true", default=None, help="Force Google AI Studio backend platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)")
     parser.add_argument("--gcp-project", "--project", default=None, help="Google Cloud Project ID for Vertex AI (default: GOOGLE_CLOUD_PROJECT or GCP_PROJECT env var)")
     parser.add_argument("--gcp-location", "--location", default=None, help="Google Cloud Region for Vertex AI (default: GOOGLE_CLOUD_LOCATION, GCP_LOCATION, or us-central1)")
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically accept cost estimate and bypass confirmation prompt")
@@ -855,17 +858,13 @@ def main():
         if enhance_mode not in ["auto", "always", "never"]:
             enhance_mode = DEFAULT_ENHANCE_MODE
 
-    raw_vertex = args.vertexai or config.get("vertexai", models_cfg.get("vertexai", models_cfg.get("use_vertexai", False)))
-    env_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
-    use_vertex = bool(raw_vertex) or env_vertex
-    gcp_project = args.gcp_project or config.get("gcp_project", models_cfg.get("gcp_project")) or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
-    gcp_location = args.gcp_location or config.get("gcp_location", models_cfg.get("gcp_location")) or os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("GCP_LOCATION", "us-central1")
-
-    if use_vertex:
-        proj_str = f" (Project: {gcp_project}, Region: {gcp_location})" if gcp_project else f" (Region: {gcp_location})"
-        platform_desc = f"Google Cloud Vertex AI{proj_str}"
-    else:
-        platform_desc = "Google AI Studio"
+    use_vertex, platform_desc, gcp_project, gcp_location = resolve_platform_backend(
+        cli_vertexai=args.vertexai,
+        cli_aistudio=args.aistudio,
+        config=config,
+        gcp_project=args.gcp_project,
+        gcp_location=args.gcp_location
+    )
 
     prefix = persona.get("prompt_prefix", "")
     player_template = config.get("player_template", "Number {number}, {name}!")
@@ -1029,11 +1028,6 @@ def main():
         except (KeyboardInterrupt, EOFError):
             print("\n🛑 Audio generation cancelled by user.")
             sys.exit(0)
-
-    raw_vertex = args.vertexai or config.get("vertexai", models_cfg.get("vertexai", models_cfg.get("use_vertexai", False)))
-    use_vertex = bool(raw_vertex)
-    gcp_project = args.gcp_project or config.get("gcp_project", models_cfg.get("gcp_project"))
-    gcp_location = args.gcp_location or config.get("gcp_location", models_cfg.get("gcp_location"))
 
     client = init_gemini_client(
         api_key=os.environ.get("GEMINI_API_KEY"),

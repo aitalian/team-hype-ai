@@ -30,6 +30,7 @@ from common import (
     DEFAULT_AUDIO_TAGS,
     clean_spoken_text,
     format_speech_style,
+    resolve_platform_backend,
 )
 from generate_gemini_audio import (
     generate_audio_clip_gemini,
@@ -106,7 +107,9 @@ def main():
     parser.add_argument("--theme-context", "--announcer-theme", default=None, help="Optional theme/personality context for script synthesis (e.g. pirate, space commander)")
     parser.add_argument("--regional-accent", "--accent", default=None, help="Optional regional accent guidance (e.g. 'French Canadian')")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=DEFAULT_ENHANCE_MODE, help="LLM script enhancement mode (default: auto)")
-    parser.add_argument("--vertexai", action="store_true", default=False, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
+    platform_group = parser.add_mutually_exclusive_group()
+    platform_group.add_argument("--vertexai", action="store_true", default=None, help="Use Google Cloud Vertex AI backend platform instead of Google AI Studio")
+    platform_group.add_argument("--aistudio", "--ai-studio", "--no-vertexai", action="store_true", default=None, help="Force Google AI Studio backend platform (overrides GOOGLE_GENAI_USE_VERTEXAI in .env)")
     parser.add_argument("--gcp-project", "--project", default=None, help="Google Cloud Project ID for Vertex AI (default: GOOGLE_CLOUD_PROJECT or GCP_PROJECT env var)")
     parser.add_argument("--gcp-location", "--location", default=None, help="Google Cloud Region for Vertex AI (default: GOOGLE_CLOUD_LOCATION, GCP_LOCATION, or us-central1)")
     parser.add_argument("-y", "--yes", action="store_true", help="Automatically accept cost estimate and bypass confirmation prompt")
@@ -126,14 +129,12 @@ def main():
     raw_audio_tag = format_audio_tag(args.audio_tags)
     audio_tag = format_speech_style(raw_audio_tag, regional_accent=regional_accent)
 
-    is_vertex = args.vertexai or os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]
-    if is_vertex:
-        gcp_proj = args.gcp_project or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
-        gcp_loc = args.gcp_location or os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("GCP_LOCATION") or "us-central1"
-        proj_str = f" (Project: {gcp_proj}, Region: {gcp_loc})" if gcp_proj else f" (Region: {gcp_loc})"
-        platform_desc = f"Google Cloud Vertex AI{proj_str}"
-    else:
-        platform_desc = "Google AI Studio"
+    is_vertex, platform_desc, gcp_proj, gcp_loc = resolve_platform_backend(
+        cli_vertexai=args.vertexai,
+        cli_aistudio=args.aistudio,
+        gcp_project=args.gcp_project,
+        gcp_location=args.gcp_location
+    )
 
     # Filter voices that need generation
     to_generate = []
@@ -202,9 +203,9 @@ def main():
 
     client = init_gemini_client(
         api_key=os.environ.get("GEMINI_API_KEY"),
-        use_vertex=args.vertexai,
-        project=args.gcp_project,
-        location=args.gcp_location
+        use_vertex=is_vertex,
+        project=gcp_proj,
+        location=gcp_loc
     )
 
     print("\n🎙️ Generating Announcer Voice Samples...")
