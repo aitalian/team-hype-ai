@@ -37,7 +37,7 @@ from generate_gemini_audio import (
 
 VOICE_DEFS = load_gemini_voices()
 PREBUILT_VOICES = [v["name"] for v in VOICE_DEFS]
-DEFAULT_SAMPLE_TEXT = "Welcome to the arena! Ladies and gentlemen, get ready for your EAGLES!"
+DEFAULT_SAMPLE_TEXT = "Welcome to DevFest Montreal! Get ready to vibe code!"
 DEFAULT_PREFIX = "Say rapidly with intense, fast-paced stadium PA announcer energy, quick delivery, and high enthusiasm: "
 
 
