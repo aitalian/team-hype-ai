@@ -12,45 +12,45 @@
     "style": "High-energy 1980s retro stadium rock PA announcer",
     "theme_context": "1980s retro arena rock stadium theme for DevFest Montreal, celebrating the 1986 Stanley Cup Champion Montreal Canadiens. High-voltage, neon arena rock swagger, synthwave vibes, driving guitar riffs, and classic Montreal hockey arena hype with 80s PA announcer punch and enthusiasm.",
     "voice_name": "Puck",
-    "audio_tags": "[excitedly, fast-paced]",
+    "audio_tags": "excitedly, fast-paced arena rock announcer",
     "prompt_prefix": "Say rapidly with intense, fast-paced 1980s stadium PA announcer energy, retro arena swagger, quick delivery, and high enthusiasm: "
   },
-  "player_template": "Number {number}, {name}!",
+  "player_template": "Number {number}, <short pause> {name}!",
   "roster": [
     {
       "number": "24",
       "name": "Chris Chelios",
       "phonetic": "Chris CHEL-ee-os",
-      "custom_intro": "Rocking the blueline, wearing number {number}, {phonetic}!",
-      "audio_tags": "[excitedly, fast-paced]"
+      "custom_intro": "Rocking the blueline, <short pause> wearing number {number}, {phonetic}!",
+      "audio_tags": "excitedly, fast-paced arena announcer"
     },
     {
       "number": "26",
       "name": "Mats Naslund",
       "phonetic": "Mats NAHZ-lund",
-      "custom_intro": "Leading the scoring attack, wearing number {number}, the Little Viking, {phonetic}!",
-      "audio_tags": "[excitedly, fast-paced]"
+      "custom_intro": "Leading the scoring attack, <short pause> wearing number {number}, the Little Viking, {phonetic}!",
+      "audio_tags": "excitedly, fast-paced arena announcer"
     },
     {
       "number": "19",
       "name": "Larry Robinson",
       "phonetic": "LAIR-ee ROB-in-sun",
-      "custom_intro": "Hall of Fame legend on defense, wearing number {number}, Big Bird, {phonetic}!",
-      "audio_tags": "[excitedly, fast-paced]"
+      "custom_intro": "Hall of Fame legend on defense, <short pause> wearing number {number}, Big Bird, {phonetic}!",
+      "audio_tags": "excitedly, fast-paced arena announcer"
     },
     {
       "number": "23",
       "name": "Bob Gainey",
       "phonetic": "Bob GAY-nee",
-      "custom_intro": "Your Team Captain, wearing number {number}, Captain {phonetic}!",
-      "audio_tags": "[shouting, hype]"
+      "custom_intro": "Your Team Captain, <short pause> wearing number {number}, Captain {phonetic}!",
+      "audio_tags": "shouting, high-energy stadium hype"
     },
     {
       "number": "33",
       "name": "Patrick Roy",
       "phonetic": "PAT-rik WAH",
-      "custom_intro": "Stopping all the pucks, the rookie sensation in net, Conn Smythe Trophy winner, wearing number {number}, Saint Patrick, {phonetic}!",
-      "audio_tags": "[excitedly, very fast]",
+      "custom_intro": "Stopping all the pucks, the rookie sensation in net, Conn Smythe Trophy winner, <short pause> wearing number {number}, Saint Patrick, {phonetic}!",
+      "audio_tags": "excitedly, very fast arena announcer",
       "post_delay_ms": 1500
     }
   ],
@@ -58,32 +58,32 @@
     {
       "filename": "Welcome to DevFest.wav",
       "text": "Welcome to DevFest Montreal! Step back to 1986!",
-      "phonetic": "Welcome to Dev-Fest Montreal! Step back to 1986!",
-      "audio_tags": "[excitedly]"
+      "phonetic": "Welcome to Dev-Fest Montreal! <short pause> Step back to 1986!",
+      "audio_tags": "excitedly, high enthusiasm"
     },
     {
       "filename": "Make Some Noise.wav",
       "text": "Montreal, make some noise!",
-      "phonetic": "Montreal, mey-k sum noyz!",
-      "audio_tags": "[shouting]"
+      "phonetic": "Montreal, <short pause> mey-k sum noyz!",
+      "audio_tags": "shouting, arena crowd hype"
     },
     {
       "filename": "For Your CANADIENS.wav",
       "text": "For your 1986 Stanley Cup Champions, your Montreal Canadiens!",
-      "phonetic": "For your 1986 Stanley Cup Champions, your Montreal Canadiens!",
-      "audio_tags": "[excitedly, very fast]"
+      "phonetic": "For your 1986 Stanley Cup Champions, <short pause> your Montreal Canadiens!",
+      "audio_tags": "excitedly, very fast arena announcer"
     },
     {
       "filename": "Hitting the Forum Ice.wav",
       "text": "Hitting the Montreal Forum ice!",
       "phonetic": "Hitt-ing thuh Montreal Forum ice!",
-      "audio_tags": "[excitedly, fast-paced]"
+      "audio_tags": "excitedly, fast-paced"
     },
     {
       "filename": "GO HABS GO.wav",
       "text": "Go Habs Go! Let's go DevFest!",
-      "phonetic": "GO HABS GOOOOO! Let's go Dev-Fest!",
-      "audio_tags": "[shouting, hype]"
+      "phonetic": "GO HABS GOOOOO! <short pause> Let's go Dev-Fest!",
+      "audio_tags": "shouting, arena hype"
     }
   ],
   "music": {

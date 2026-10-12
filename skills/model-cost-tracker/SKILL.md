@@ -22,7 +22,7 @@ TeamHypeAI strictly focuses on models relevant to sports stadium introductions:
 | Role | Description | Current Tracked Default | Alternatives / Previews |
 | :--- | :--- | :--- | :--- |
 | **`announcer_script`** | LLM stadium script inflection & enhancer | [`gemini-3.8-flash`](config/cost_rates.json) | `gemini-3.6-flash`, `gemini-3.5-flash-lite` |
-| **`tts_voice`** | Stadium PA speech generation with audio tags | [`gemini-3.8-flash-tts`](config/cost_rates.json) | `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview` |
+| **`tts_voice`** | Stadium PA speech generation with speech_metadata | [`gemini-3.8-flash-tts`](config/cost_rates.json) | `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview` *(deprecated)* |
 | **`music_generator`** | Arena entrance music generation | [`lyria-3.5`](config/cost_rates.json) | `lyria-3-clip-preview`, `lyria-3-pro-preview` |
 
 ---

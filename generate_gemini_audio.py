@@ -112,43 +112,46 @@ from common import (
     DEFAULT_VOICE_PERSONA,
     DEFAULT_ENHANCE_MODE,
     DEFAULT_AUDIO_TAGS,
+    clean_spoken_text,
+    clean_style_directive,
+    build_speech_part,
 )
 
 
 def format_audio_tag(tag):
     """
-    Normalizes audio tags (e.g., 'excitedly', 'excitedly, fast', or '[shouting]') into clean bracketed audio tags (e.g., '[excitedly, fast]').
-    Returns empty string if tag is empty/None.
+    Normalizes audio tags or style strings into clean delivery style strings for Gemini 3.8 Flash TTS speech_metadata.style.
+    Strips enclosing brackets or angle tags.
     """
     if not tag:
         return ""
-    tag_str = str(tag).strip()
-    if not tag_str:
-        return ""
-    if not (tag_str.startswith("[") and tag_str.endswith("]")):
-        tag_str = f"[{tag_str}]"
-    return tag_str
+    return clean_style_directive(str(tag).strip())
 
 
-def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", max_retries=3):
+def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", audio_tag="", max_retries=3):
     """
-    Uses LLM (e.g. gemini-3.6-flash) to rewrite and format plain text into rapid-fire, high-energy PA announcer scripts
-    with phonetic inflections, concise drawn-out vowels, expressive audio tags (e.g. [excitedly], [shouting]),
-    and PA stadium emphasis cues prior to TTS generation.
+    Uses LLM (e.g. gemini-3.8-flash) to rewrite and format plain text into rapid-fire, high-energy PA announcer scripts
+    with phonetic inflections, concise drawn-out vowels, and PA stadium emphasis cues prior to TTS generation.
+    Observes delivery instructions and audio tags for tone, but strictly outputs clean speech text without tags or prompt prefixes.
     """
+    delivery_str = f"Delivery & Cadence Instructions: {delivery_instructions}\n" if delivery_instructions else ""
+    tone_str = f"Desired Tone / Energy Cue: {audio_tag}\n" if audio_tag else ""
     theme_str = f"Theme & Context Instructions: {theme_context}\nIncorporate thematic phrasing, tone accents, vocabulary, or puns matching this theme while keeping speech punchy and stadium-ready.\n\n" if theme_context else ""
 
     prompt = (
         f"You are a professional PA sports announcer script writer. "
         f"Style: {persona_style}.\n\n"
+        f"{delivery_str}"
+        f"{tone_str}"
         f"{theme_str}"
         f"Rewrite the following announcement text into a concise, rapid-fire, high-energy stadium PA script "
-        f"for speech synthesis. Keep the delivery fast-paced, quick, and punchy. Use uppercase for strong emphasis, "
-        f"drawn-out vowels ONLY for key player names, and clear punctuation to guide rapid pitch and inflection. "
-        f"You may include expressive bracketed audio tags (e.g. [excitedly], [shouting], [excitedly, fast-paced]) "
-        f"at key points or at the beginning of the text to guide Gemini TTS voice delivery. "
-        f"Do not elongate words unnecessarily. Output ONLY the raw enhanced script text without explanations or quotes:\n\n"
-        f"Input: {raw_text}"
+        f"for Google Gemini 3.8 Flash TTS speech synthesis. Keep delivery fast-paced, quick, and punchy. Use UPPERCASE for strong stadium emphasis, "
+        f"drawn-out vowels ONLY for key player names, and clear punctuation (commas, exclamation points) to guide rapid pitch, volume, and inflection.\n\n"
+        f"CRITICAL REQUIREMENTS FOR GEMINI 3.8 TTS VERBATIM MODEL:\n"
+        f"1. Infuse the delivery instructions, tone cues, and theme directly into the rhythm, casing, and phrasing of the spoken dialogue.\n"
+        f"2. You MAY insert '<short pause>' inline for dramatic stadium timing or breathing pauses before big announcements where appropriate.\n"
+        f"3. Output ONLY the clean script text to be spoken. Do NOT include explanations, quotes, prompt prefixes (such as 'Say rapidly...'), or bracketed audio tags (e.g. NEVER output [excitedly] or [shouting]) in your output text.\n\n"
+        f"Input Text: {clean_spoken_text(raw_text, allow_vocal_tags=True)}"
     )
     for attempt in range(1, max_retries + 1):
         log_api_event("LLM_SCRIPT", "REQUEST", {"model": llm_model, "raw_text": raw_text, "style": persona_style, "theme_context": theme_context, "attempt": attempt})
@@ -158,7 +161,7 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
                 contents=prompt
             )
             enhanced = response.text.strip().strip('"\'')
-            final_script = enhanced if enhanced else raw_text
+            final_script = clean_spoken_text(enhanced, allow_vocal_tags=True) if enhanced else clean_spoken_text(raw_text, allow_vocal_tags=True)
             log_api_event("LLM_SCRIPT", "SUCCESS", {"model": llm_model, "enhanced_text": final_script})
             return final_script
         except Exception as e:
@@ -173,34 +176,45 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
                     time.sleep(5)
                 else:
                     print(f"   ⚠️ LLM Script Enhancement notice ({llm_model}): {e}. Using base prompt.")
-                    return raw_text
+                    return clean_spoken_text(raw_text, allow_vocal_tags=True)
 
-    return raw_text
+    return clean_spoken_text(raw_text, allow_vocal_tags=True)
 
 
-def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", max_retries=3):
+def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", max_retries=3):
     """
-    Uses LLM (e.g. gemini-3.6-flash) in a single API call to rewrite multiple raw scripts in batch into a JSON mapping.
-    items_to_enhance: list of dicts [{'id': key, 'raw_text': text}]
-    Returns: dict mapping item id -> enhanced text string, or None if fallback is required
+    Uses LLM (e.g. gemini-3.8-flash) in a single API call to rewrite multiple raw scripts in batch into a JSON mapping.
+    items_to_enhance: list of dicts [{'id': key, 'raw_text': text, 'audio_tag': tag}]
+    Returns: dict mapping item id -> clean enhanced text string, or None if fallback is required
     """
     if not items_to_enhance:
         return {}
 
-    prompt_payload = {item['id']: item['raw_text'] for item in items_to_enhance}
+    prompt_payload = {}
+    for item in items_to_enhance:
+        prompt_payload[item['id']] = {
+            "text": clean_spoken_text(item['raw_text'], allow_vocal_tags=True),
+            "tone_cue": item.get('audio_tag', '')
+        }
     prompt_json_str = json.dumps(prompt_payload, indent=2)
 
+    delivery_str = f"Delivery & Cadence Instructions: {delivery_instructions}\n" if delivery_instructions else ""
     theme_str = f"Theme & Context Instructions: {theme_context}\nIncorporate thematic phrasing, tone accents, vocabulary, or puns matching this theme while keeping speech punchy and stadium-ready.\n\n" if theme_context else ""
 
     prompt = (
         f"You are a professional PA sports announcer script writer. Style: {persona_style}.\n\n"
+        f"{delivery_str}"
         f"{theme_str}"
         f"Rewrite each announcement text in the input JSON into a concise, rapid-fire, high-energy stadium PA script "
-        f"for speech synthesis. Keep delivery fast-paced, quick, and punchy. Use uppercase for strong emphasis, "
-        f"drawn-out vowels ONLY for key player names, and clear punctuation. You may include expressive bracketed audio tags "
-        f"(e.g. [excitedly], [shouting], [excitedly, fast-paced]) at key points.\n\n"
-        f"Output ONLY a valid JSON object matching the keys of the input JSON, where values are the enhanced script strings. "
-        f"Do not include markdown code block backticks or extra explanation text.\n\n"
+        f"for Google Gemini 3.8 Flash TTS speech synthesis.\n"
+        f"Keep delivery fast-paced, quick, and punchy. Use UPPERCASE for strong stadium emphasis, "
+        f"drawn-out vowels ONLY for key player names, and clear punctuation (commas, exclamation points) to guide rapid pitch, volume, and inflection.\n"
+        f"Observe the tone cues and delivery instructions to shape the vocal energy, enthusiasm, and stadium excitement directly through phrasing and typography.\n\n"
+        f"CRITICAL REQUIREMENTS FOR GEMINI 3.8 TTS VERBATIM MODEL:\n"
+        f"1. Output ONLY the clean script text to be vocalized by the speech synthesizer.\n"
+        f"2. You MAY insert '<short pause>' inline for dramatic stadium timing or breathing pauses before big announcements where appropriate.\n"
+        f"3. NEVER include the prompt instructions, any directorial prefixes (e.g. 'Say rapidly...'), explanations, or bracketed audio tags (e.g. NEVER output [excitedly], [shouting], or any [tag]) in your output text.\n"
+        f"4. Output ONLY a valid JSON object matching the keys of the input JSON, where values are the clean enhanced script strings.\n\n"
         f"Input JSON:\n{prompt_json_str}"
     )
 
@@ -225,8 +239,10 @@ def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona
                 raw_resp = "\n".join(lines).strip()
 
             enhanced_map = json.loads(raw_resp)
-            log_api_event("LLM_SCRIPT_BATCH", "SUCCESS", {"model": llm_model, "count": len(enhanced_map)})
-            return enhanced_map
+            # Ensure every output string in map is strictly sanitized
+            cleaned_map = {k: clean_spoken_text(v) for k, v in enhanced_map.items()}
+            log_api_event("LLM_SCRIPT_BATCH", "SUCCESS", {"model": llm_model, "count": len(cleaned_map)})
+            return cleaned_map
         except Exception as e:
             log_api_event("LLM_SCRIPT_BATCH", "ERROR", {"model": llm_model, "attempt": attempt, "error": str(e)})
             if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
@@ -251,12 +267,7 @@ def load_config(config_path):
 
 def build_intro_clip_announcement(clip, prefix="", global_audio_tags=""):
     display_text = clip.get("phonetic") or clip.get("spoken_text") or clip.get("text", "")
-    clip_tag = format_audio_tag(clip.get("audio_tags") or clip.get("audio_tag")) or format_audio_tag(global_audio_tags)
-
-    if clip_tag and not display_text.strip().startswith("["):
-        display_text = f"{clip_tag} {display_text}"
-
-    return f"{prefix}{display_text}" if prefix else display_text
+    return clean_spoken_text(display_text, prefix=prefix)
 
 
 def build_player_announcement(player, template, prefix="", global_audio_tags=""):
@@ -266,7 +277,6 @@ def build_player_announcement(player, template, prefix="", global_audio_tags="")
     phonetic_num = player.get("phonetic_number") or player.get("number_phonetic")
     custom_intro = player.get("custom_intro")
     pretext = player.get("pretext") or player.get("prefix")
-    item_audio_tag = format_audio_tag(player.get("audio_tags") or player.get("audio_tag")) or format_audio_tag(global_audio_tags)
 
     # Filename uses official player jersey number and name
     filename = f"#{num} {name}.wav"
@@ -312,12 +322,7 @@ def build_player_announcement(player, template, prefix="", global_audio_tags="")
     else:
         formatted = active_template.format(number=spoken_num, name=spoken_name)
 
-    if item_audio_tag and not formatted.strip().startswith("["):
-        formatted = f"{item_audio_tag} {formatted}"
-
-    text_prompt = f"{prefix}{formatted}" if prefix else formatted
-
-    return filename, text_prompt
+    return filename, clean_spoken_text(formatted, prefix=prefix)
 
 
 def print_cost_report(num_clips, tts_model, llm_model, music_model, num_enhanced_clips=0, generate_music=True, prompts=None, music_prompt="", music_duration_sec=30, batch_script=True, batch_tts=True, batch_size=10, platform_desc="Google AI Studio", use_vertex=False):
@@ -462,9 +467,10 @@ def save_audio_bytes(audio_bytes, mime_type, out_path):
             wav_file.writeframes(audio_bytes)
 
 
-def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, voice_name="Puck", force=False, max_retries=3):
+def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, voice_name="Puck", style="", force=False, max_retries=3):
     """
     Generates high-energy announcer voice audio using Google GenAI SDK with rate-limit retries.
+    Uses native types.SpeechMetadata(speaker=voice_name, style=style) for Gemini 3.8 Flash TTS.
     """
     out_path = os.path.join(output_dir, filename)
 
@@ -476,12 +482,22 @@ def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, v
     from google.genai import types
     from google.genai.errors import APIError
 
+    part = build_speech_part(text, voice_name=voice_name, style=style)
+    clean_text = part.text
+
     for attempt in range(1, max_retries + 1):
-        log_api_event("VOICE_TTS", "REQUEST", {"filename": filename, "model": model_name, "voice": voice_name, "attempt": attempt, "text": text})
+        log_api_event("VOICE_TTS", "REQUEST", {
+            "filename": filename,
+            "model": model_name,
+            "voice": voice_name,
+            "style": style,
+            "attempt": attempt,
+            "text": clean_text
+        })
         try:
             response = client.models.generate_content(
                 model=model_name,
-                contents=text,
+                contents=[part],
                 config=types.GenerateContentConfig(
                     response_modalities=["AUDIO"],
                     speech_config=types.SpeechConfig(
@@ -497,10 +513,10 @@ def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, v
             if response and getattr(response, "candidates", None):
                 candidate = response.candidates[0]
                 if candidate and getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
-                    for part in candidate.content.parts:
-                        if hasattr(part, "inline_data") and part.inline_data:
-                            audio_data = part.inline_data.data
-                            mime_type = getattr(part.inline_data, "mime_type", "audio/wav")
+                    for p in candidate.content.parts:
+                        if hasattr(p, "inline_data") and p.inline_data:
+                            audio_data = p.inline_data.data
+                            mime_type = getattr(p.inline_data, "mime_type", "audio/wav")
                             break
 
             if audio_data:
@@ -541,12 +557,12 @@ def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, v
     return False
 
 
-def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voice_name="Puck", max_retries=3):
+def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voice_name="Puck", batch_style="", max_retries=3):
     """
     Generates high-energy announcer voice audio for a batch of clips in a single Gemini TTS API request,
     then uses pydub.silence.split_on_silence to slice the generated audio into individual WAV files.
 
-    batch_items: list of dicts [{'filename': fname, 'text': text}]
+    batch_items: list of dicts [{'filename': fname, 'text': text, 'style': style}]
     Returns: bool (True if batch succeeded and all files sliced cleanly, False if fallback is required)
     """
     if not batch_items:
@@ -562,9 +578,10 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
         print("   ⚠️ pydub library missing or missing audioop. Falling back to 1:1 TTS generation.")
         return False
 
-    pause_delimiter = "\n\n... [pause 2s] ...\n\n"
-    combined_text = pause_delimiter.join(item['text'] for item in batch_items)
+    pause_delimiter = " <short pause> <short pause> "
+    combined_text = pause_delimiter.join(clean_spoken_text(item['text'], allow_vocal_tags=True) for item in batch_items)
     batch_filenames = [item['filename'] for item in batch_items]
+    part = build_speech_part(combined_text, voice_name=voice_name, style=batch_style)
 
     temp_batch_path = os.path.join(output_dir, "_temp_batch_output.wav")
 
@@ -574,12 +591,13 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
             "filenames": batch_filenames,
             "model": model_name,
             "voice": voice_name,
+            "style": batch_style,
             "attempt": attempt
         })
         try:
             response = client.models.generate_content(
                 model=model_name,
-                contents=combined_text,
+                contents=[part],
                 config=types.GenerateContentConfig(
                     response_modalities=["AUDIO"],
                     speech_config=types.SpeechConfig(
@@ -732,21 +750,25 @@ def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, d
                 dur_fmt = format_duration_human(wait_sec)
                 print(f"   ⏳ Rate limit hit (429). Waiting {dur_fmt} ({wait_sec:.1f}s) for API quota reset (attempt {attempt}/{max_retries})...")
                 time.sleep(wait_sec)
+            elif any(kw in str(e).upper() for kw in ["404", "NOT_FOUND", "PERMISSION_DENIED"]):
+                print(f"   ⚠️ Lyria Music notice: Model '{model_name}' is unavailable on this platform/project ({e}).")
+                print(f"      Continuing show generation without auto-generated music. You can place an audio file at '{out_path}'.")
+                return False
             else:
                 if attempt < max_retries:
                     print(f"   ⚠️ Retrying API call for music (attempt {attempt}/{max_retries}) due to: {e}")
                     time.sleep(5)
                 else:
-                    print(f"   ❌ API Error generating music: {e}")
-                    raise
+                    print(f"   ⚠️ Lyria Music synthesis error: {e}. Continuing show generation.")
+                    return False
         except Exception as e:
             log_api_event("LYRIA_MUSIC", "ERROR", {"filename": filename, "attempt": attempt, "error": str(e)})
             if attempt < max_retries:
                 print(f"   ⚠️ Retrying music generation (attempt {attempt}/{max_retries}) due to: {e}")
                 time.sleep(5)
             else:
-                print(f"   ❌ Error generating music: {e}")
-                raise
+                print(f"   ⚠️ Music generation error: {e}. Continuing show generation.")
+                return False
 
     return False
 
@@ -885,7 +907,8 @@ def main():
             is_missing = args.force or not (os.path.exists(p_file) and os.path.getsize(p_file) > 0)
             if is_missing:
                 num_voice_to_generate += 1
-                txt = build_intro_clip_announcement(clip, prefix, global_audio_tags)
+                txt = build_intro_clip_announcement(clip)
+                clip_tag = format_audio_tag(clip.get("audio_tags") or clip.get("audio_tag")) or format_audio_tag(global_audio_tags)
                 to_generate_prompts.append(txt)
                 needs_enh = intro_enhancements[idx]
                 if needs_enh:
@@ -893,11 +916,13 @@ def main():
                 items_to_process.append({
                     "filename": fname,
                     "raw_text": txt,
+                    "audio_tag": clip_tag,
                     "needs_enhancement": needs_enh
                 })
 
         for idx, p in enumerate(roster):
-            fname, txt = build_player_announcement(p, player_template, prefix, global_audio_tags)
+            fname, txt = build_player_announcement(p, player_template)
+            p_tag = format_audio_tag(p.get("audio_tags") or p.get("audio_tag")) or format_audio_tag(global_audio_tags)
             full_p = os.path.join(args.output_dir, fname)
             is_missing = args.force or not (os.path.exists(full_p) and os.path.getsize(full_p) > 0)
             if is_missing:
@@ -909,6 +934,7 @@ def main():
                 items_to_process.append({
                     "filename": fname,
                     "raw_text": txt,
+                    "audio_tag": p_tag,
                     "needs_enhancement": needs_enh
                 })
 
@@ -944,25 +970,29 @@ def main():
     )
 
     if args.dry_run:
-        print("🔍 DRY RUN MODE -- Generated Prompts & Batch Execution Preview:")
+        print("🔍 DRY RUN MODE -- Generated Dialogue & Batch Execution Preview:")
         print("\n--- INTRO CLIPS ---")
         for idx, clip in enumerate(intro_clips):
             fname = clip["filename"]
             out_p = os.path.join(args.output_dir, fname)
             is_cached = not args.force and os.path.exists(out_p) and os.path.getsize(out_p) > 0
             cache_tag = " ⏩ [Existing File Cached - Will Skip]" if is_cached else ""
-            txt = build_intro_clip_announcement(clip, prefix, global_audio_tags)
+            txt = build_intro_clip_announcement(clip)
+            clip_tag = format_audio_tag(clip.get("audio_tags") or clip.get("audio_tag")) or format_audio_tag(global_audio_tags)
             enhance_tag = f" 🧠 [LLM Script Enhancement via {llm_model}]" if (intro_enhancements[idx] and not is_cached) else ""
-            print(f"📁 {fname} -> \"{txt}\"{enhance_tag}{cache_tag}")
+            tag_info = f" [Speech Style: '{clip_tag}']" if clip_tag else ""
+            print(f"📁 {fname} -> \"{txt}\"{tag_info}{enhance_tag}{cache_tag}")
 
         print("\n--- ROSTER CLIPS ---")
         for idx, p in enumerate(roster):
-            fname, txt = build_player_announcement(p, player_template, prefix, global_audio_tags)
+            fname, txt = build_player_announcement(p, player_template)
+            p_tag = format_audio_tag(p.get("audio_tags") or p.get("audio_tag")) or format_audio_tag(global_audio_tags)
             out_p = os.path.join(args.output_dir, fname)
             is_cached = not args.force and os.path.exists(out_p) and os.path.getsize(out_p) > 0
             cache_tag = " ⏩ [Existing File Cached - Will Skip]" if is_cached else ""
             enhance_tag = f" 🧠 [LLM Script Enhancement via {llm_model}]" if (roster_enhancements[idx] and not is_cached) else ""
-            print(f"📁 {fname} -> \"{txt}\"{enhance_tag}{cache_tag}")
+            tag_info = f" [Speech Style: '{p_tag}']" if p_tag else ""
+            print(f"📁 {fname} -> \"{txt}\"{tag_info}{enhance_tag}{cache_tag}")
 
         if not args.skip_music:
             m_cached = not args.force and os.path.exists(m_path) and os.path.getsize(m_path) > 0
@@ -1006,64 +1036,79 @@ def main():
         if items_needing_enh:
             if batch_script:
                 print(f"🧠 Batch enhancing {len(items_needing_enh)} announcer script(s) via {llm_model} (1 API call)...")
-                batch_payload = [{"id": item["filename"], "raw_text": item["raw_text"]} for item in items_needing_enh]
+                batch_payload = [
+                    {
+                        "id": item["filename"],
+                        "raw_text": item["raw_text"],
+                        "audio_tag": item.get("audio_tag", "")
+                    }
+                    for item in items_needing_enh
+                ]
                 enhanced_map = batch_enhance_announcer_scripts(
                     client, batch_payload, llm_model,
                     persona_style=persona.get("style", "High-energy stadium PA announcer"),
-                    theme_context=theme_context
+                    theme_context=theme_context,
+                    delivery_instructions=prefix
                 )
 
                 if enhanced_map and isinstance(enhanced_map, dict):
                     for item in items_to_process:
                         if item["filename"] in enhanced_map:
-                            item["final_text"] = enhanced_map[item["filename"]]
+                            item["final_text"] = clean_spoken_text(enhanced_map[item["filename"]], allow_vocal_tags=True)
                         else:
-                            item["final_text"] = item["raw_text"]
+                            item["final_text"] = clean_spoken_text(item["raw_text"], allow_vocal_tags=True)
                 else:
                     # Fall back to 1:1 LLM enhancement
                     print("   🧠 Executing 1:1 LLM enhancement fallback per item...")
                     for item in items_to_process:
                         if item["needs_enhancement"]:
-                            item["final_text"] = enhance_announcer_script(
+                            enhanced = enhance_announcer_script(
                                 client, item["raw_text"], llm_model,
                                 persona_style=persona.get("style", "High-energy stadium PA announcer"),
-                                theme_context=theme_context
+                                theme_context=theme_context,
+                                delivery_instructions=prefix,
+                                audio_tag=item.get("audio_tag", "")
                             )
+                            item["final_text"] = clean_spoken_text(enhanced, allow_vocal_tags=True)
                         else:
-                            item["final_text"] = item["raw_text"]
+                            item["final_text"] = clean_spoken_text(item["raw_text"], allow_vocal_tags=True)
             else:
                 for item in items_to_process:
                     if item["needs_enhancement"]:
                         print(f"🧠 Enhancing announcer script for '{item['filename']}' via {llm_model}...")
-                        item["final_text"] = enhance_announcer_script(
+                        enhanced = enhance_announcer_script(
                             client, item["raw_text"], llm_model,
                             persona_style=persona.get("style", "High-energy stadium PA announcer"),
-                            theme_context=theme_context
+                            theme_context=theme_context,
+                            delivery_instructions=prefix,
+                            audio_tag=item.get("audio_tag", "")
                         )
+                        item["final_text"] = clean_spoken_text(enhanced, allow_vocal_tags=True)
                     else:
-                        item["final_text"] = item["raw_text"]
+                        item["final_text"] = clean_spoken_text(item["raw_text"], allow_vocal_tags=True)
         else:
             for item in items_to_process:
-                item["final_text"] = item["raw_text"]
+                item["final_text"] = clean_spoken_text(item["raw_text"], allow_vocal_tags=True)
 
         # Step B: TTS Audio Generation (Batched Slicing vs 1:1 Fallback)
+        default_style = format_audio_tag(persona.get("audio_tags") or global_audio_tags)
         if batch_tts:
             print(f"🔊 Generating {len(items_to_process)} voice clip(s) using batched TTS requests (batch size: {batch_size})...")
             # Chunk items into batches
             chunks = [items_to_process[i:i + batch_size] for i in range(0, len(items_to_process), batch_size)]
             for chunk_idx, chunk in enumerate(chunks, start=1):
                 print(f"   🎙️ Processing TTS Batch {chunk_idx}/{len(chunks)} ({len(chunk)} clip(s))...")
-                batch_payload = [{"filename": item["filename"], "text": item["final_text"]} for item in chunk]
-                success = generate_audio_batch_gemini(client, batch_payload, args.output_dir, tts_model, voice_persona)
+                batch_payload = [{"filename": item["filename"], "text": item["final_text"], "style": item.get("audio_tag", default_style)} for item in chunk]
+                success = generate_audio_batch_gemini(client, batch_payload, args.output_dir, tts_model, voice_persona, batch_style=default_style)
 
                 if not success:
                     print(f"   ⚠️ Falling back to 1:1 TTS generation for Batch {chunk_idx} items...")
                     for item in chunk:
-                        generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, force=args.force)
+                        generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, style=item.get("audio_tag", default_style), force=args.force)
         else:
             print(f"🔊 Generating {len(items_to_process)} voice clip(s) using 1:1 TTS API requests...")
             for item in items_to_process:
-                generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, force=args.force)
+                generate_audio_clip_gemini(client, item["final_text"], item["filename"], args.output_dir, tts_model, voice_persona, style=item.get("audio_tag", default_style), force=args.force)
 
     # 2. Generate Music Clip via Google Lyria Model
     if not args.skip_music:

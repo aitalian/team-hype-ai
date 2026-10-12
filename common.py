@@ -10,6 +10,7 @@ import os
 import sys
 import json
 import datetime
+import re
 
 
 def log_api_event(category, action, details="", log_path="logs/api_execution.log"):
@@ -46,7 +47,85 @@ DEFAULT_LLM_MODEL = "gemini-3.8-flash"
 DEFAULT_MUSIC_MODEL = "lyria-3.5"
 DEFAULT_VOICE_PERSONA = "Puck"
 DEFAULT_ENHANCE_MODE = "auto"
-DEFAULT_AUDIO_TAGS = "[excitedly, fast-paced]"
+DEFAULT_AUDIO_TAGS = "excitedly, fast-paced arena announcer"
+
+VALID_POINT_IN_TIME_TAGS = {
+    "short pause", "pause", "breath", "cough", "sigh", "laugh", "gasp", "cheer", "groan", "shout"
+}
+
+
+def clean_style_directive(style: str) -> str:
+    """
+    Cleans a style string for Gemini 3.8 Flash TTS speech_metadata.style.
+    Strips enclosing brackets or angle tags if present (e.g. '[excitedly]' -> 'excitedly').
+    """
+    if not style:
+        return ""
+    s = str(style).strip()
+    s = re.sub(r"^\[|\]$", "", s).strip()
+    s = re.sub(r"^<|>$", "", s).strip()
+    return s
+
+
+def clean_spoken_text(text: str, prefix: str = "", allow_vocal_tags: bool = True) -> str:
+    """
+    Sanitizes dialogue text before feeding into Gemini 3.8 Flash TTS speech synthesis.
+    Strips:
+      1. Explicit prompt prefixes (e.g. prefix parameter if matching)
+      2. Any leading prompt/director directives (e.g. "Say rapidly with...", "Prompt:", "Announce with...")
+      3. Any square bracketed audio tags (e.g. [excitedly], [shouting], [excitedly, fast-paced])
+      4. Invalid/directorial angle tags while PRESERVING valid point-in-time vocal event tags
+         (e.g. <short pause>, <sigh>, <breath>, <cheer>) per Gemini 3.8 TTS official documentation
+      5. Consecutive whitespace
+    Ensures Gemini 3.8 Flash TTS only vocalizes verbatim announcement dialogue.
+    """
+    if not text:
+        return ""
+    cleaned = str(text).strip()
+
+    if prefix:
+        prefix_clean = prefix.strip()
+        if cleaned.startswith(prefix_clean):
+            cleaned = cleaned[len(prefix_clean):].strip()
+
+    if ":" in cleaned and any(cleaned.lower().startswith(kw) for kw in ["say ", "announce ", "speak ", "prompt:", "with ", "act ", "voice:"]):
+        cleaned = cleaned.split(":", 1)[1].strip()
+
+    # Strip square brackets completely (legacy tags e.g. [excitedly])
+    cleaned = re.sub(r"\[[^\]]*\]", "", cleaned)
+
+    # Filter angle brackets: preserve valid vocal event tags if allow_vocal_tags is True
+    if allow_vocal_tags:
+        def replace_angle_tag(match):
+            inner = match.group(1).lower().strip()
+            if any(inner == tag or inner.startswith(tag) for tag in VALID_POINT_IN_TIME_TAGS):
+                return f"<{inner}>"
+            return ""
+        cleaned = re.sub(r"<([^>]+)>", replace_angle_tag, cleaned)
+    else:
+        cleaned = re.sub(r"<[^>]*>", "", cleaned)
+
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def build_speech_part(text: str, voice_name: str = "Puck", style: str = ""):
+    """
+    Constructs a google.genai types.Part configured for Gemini 3.8 Flash TTS
+    with types.SpeechMetadata(speaker=voice_name, style=style).
+    Preserves valid angle-bracket point-in-time tags (<short pause>, etc.).
+    """
+    from google.genai import types
+    clean_text = clean_spoken_text(text, allow_vocal_tags=True)
+    part = types.Part.from_text(text=clean_text)
+    if hasattr(types, "SpeechMetadata"):
+        clean_style = clean_style_directive(style)
+        part.speech_metadata = types.SpeechMetadata(
+            speaker=voice_name or "Puck",
+            style=clean_style or None
+        )
+    return part
+
 
 def check_model_status(model_name: str, category: str = "general", json_path: str = "config/cost_rates.json") -> dict:
     """
@@ -310,16 +389,24 @@ def init_gemini_client(api_key=None, use_vertex=None, project=None, location=Non
         gcp_proj = project or os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCP_PROJECT")
         gcp_loc = location or os.environ.get("GOOGLE_CLOUD_LOCATION") or os.environ.get("GCP_LOCATION") or "us-central1"
 
-        client_kwargs = {
-            "vertexai": True,
-            "project": gcp_proj,
-            "location": gcp_loc
-        }
         if api_key_val:
-            client_kwargs["api_key"] = api_key_val
+            # When API key is provided for Vertex AI, project and location must be omitted
+            # as they are mutually exclusive in google-genai Client initializer.
+            client_kwargs = {
+                "vertexai": True,
+                "api_key": api_key_val
+            }
+            auth_desc = "GCP API Key"
+            print(f"🔑 Google Cloud Vertex AI client initializing (Auth: {auth_desc}).")
+        else:
+            client_kwargs = {
+                "vertexai": True,
+                "project": gcp_proj,
+                "location": gcp_loc
+            }
+            auth_desc = "Application Default Credentials (ADC)"
+            print(f"🔑 Google Cloud Vertex AI client initializing (Project: '{gcp_proj or 'ADC/Default'}', Region: '{gcp_loc}', Auth: {auth_desc}).")
 
-        auth_desc = "GCP API Key" if api_key_val else "Application Default Credentials (ADC)"
-        print(f"🔑 Google Cloud Vertex AI client initializing (Project: '{gcp_proj or 'ADC/Default'}', Region: '{gcp_loc}', Auth: {auth_desc}).")
         return genai.Client(**client_kwargs)
     else:
         if not api_key_val:

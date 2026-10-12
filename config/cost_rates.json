@@ -1,5 +1,5 @@
 {
-  "_schema_version": "2.0.0",
+  "_schema_version": "2.1.0",
   "_meta": {
     "sources": {
       "ai_studio": "https://ai.google.dev/pricing",
@@ -248,13 +248,14 @@
     "gemini-3.1-flash-tts-preview": {
       "display_name": "Gemini 3.1 Flash TTS Preview",
       "role": "tts_voice",
-      "description": "Controllable speech generation supporting bracketed expressive audio tags.",
-      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-tts-preview",
+      "description": "Deprecated preview TTS model superseded by gemini-3.8-flash-tts. Directorial tags and styles must be migrated to speech_metadata.",
+      "documentation_url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash-tts",
       "supported_channels": [
         "ai_studio",
         "vertex_ai"
       ],
-      "status": "preview",
+      "status": "legacy",
+      "deprecated": true,
       "recommended_replacement": "gemini-3.8-flash-tts",
       "version_rank": 3.1,
       "rates": {

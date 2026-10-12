@@ -28,6 +28,7 @@ from common import (
     DEFAULT_LLM_MODEL,
     DEFAULT_ENHANCE_MODE,
     DEFAULT_AUDIO_TAGS,
+    clean_spoken_text,
 )
 from generate_gemini_audio import (
     generate_audio_clip_gemini,
@@ -170,7 +171,7 @@ def main():
         use_vertex=is_vertex
     )
 
-    base_sample_text = f"{audio_tag} {args.sample_text}" if audio_tag and not args.sample_text.startswith("[") else args.sample_text
+    clean_sample_text = clean_spoken_text(args.sample_text)
 
     if args.dry_run:
         print("🔍 DRY RUN MODE -- Voice Sample Prompts Preview:")
@@ -178,8 +179,9 @@ def main():
             fname = f"{voice}.wav"
             status = " [Will Generate]" if voice in to_generate else " [Existing File Cached]"
             enhance_tag = f" 🧠 [LLM Enhanced via {args.llm_model}]" if should_enhance else ""
+            tag_info = f" [Tone: {audio_tag}]" if audio_tag else ""
             print(f"📁 {os.path.join(args.output_dir, fname)} ({voice}){status}")
-            print(f"   Prompt: \"{DEFAULT_PREFIX}{base_sample_text}\"{enhance_tag}\n")
+            print(f"   Dialogue: \"{clean_sample_text}\"{tag_info}{enhance_tag}\n")
         return
 
     if not args.yes and sys.stdin.isatty():
@@ -207,19 +209,31 @@ def main():
             print(f"   ⏩ Skipping existing voice sample: {out_path}")
             continue
 
-        prompt_text = f"{DEFAULT_PREFIX}{base_sample_text}"
         if should_enhance:
             print(f"🧠 Enhancing script for '{voice}' via {args.llm_model}...")
-            prompt_text = enhance_announcer_script(client, prompt_text, args.llm_model, theme_context=args.theme_context or "")
+            voice_def = next((v for v in VOICE_DEFS if v["name"] == voice), {})
+            persona_style = voice_def.get("style", "High-energy stadium PA announcer")
+            prompt_text = enhance_announcer_script(
+                client,
+                clean_sample_text,
+                args.llm_model,
+                persona_style=persona_style,
+                theme_context=args.theme_context or "",
+                delivery_instructions=DEFAULT_PREFIX,
+                audio_tag=audio_tag
+            )
+        else:
+            prompt_text = clean_sample_text
 
         print(f"🎙️ Synthesizing voice sample for '{voice}'...")
         generate_audio_clip_gemini(
             client,
-            text=prompt_text,
+            text=clean_spoken_text(prompt_text, allow_vocal_tags=True),
             filename=fname,
             output_dir=args.output_dir,
             model_name=args.tts_model,
             voice_name=voice,
+            style=audio_tag or DEFAULT_AUDIO_TAGS,
             force=args.force
         )
 
