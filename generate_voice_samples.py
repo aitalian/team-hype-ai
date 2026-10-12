@@ -99,6 +99,7 @@ def main():
     parser.add_argument("--tts-model", default=DEFAULT_TTS_MODEL, help=f"Gemini TTS model (default: {DEFAULT_TTS_MODEL})")
     parser.add_argument("--llm-model", default=DEFAULT_LLM_MODEL, help=f"Gemini LLM model (default: {DEFAULT_LLM_MODEL})")
     parser.add_argument("--voices", default=",".join(PREBUILT_VOICES), help=f"Comma-separated list of voices (default: {','.join(PREBUILT_VOICES)})")
+    parser.add_argument("--featured-only", action="store_true", default=False, help="Only generate samples for core featured stadium voice personas (Puck, Charon, Kore, Fenrir, Aoede)")
     parser.add_argument("--audio-tags", default=DEFAULT_AUDIO_TAGS, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS})")
     parser.add_argument("--theme-context", "--announcer-theme", default=None, help="Optional theme/personality context for script synthesis (e.g. pirate, space commander)")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=DEFAULT_ENHANCE_MODE, help="LLM script enhancement mode (default: auto)")
@@ -113,6 +114,11 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
     voice_list = [v.strip() for v in args.voices.split(",") if v.strip()]
+    if args.featured_only:
+        featured_names = [v["name"] for v in VOICE_DEFS if v.get("is_featured", False)]
+        if not featured_names:
+            featured_names = ["Puck", "Charon", "Kore", "Fenrir", "Aoede"]
+        voice_list = [v for v in voice_list if v in featured_names]
     audio_tag = format_audio_tag(args.audio_tags)
 
     is_vertex = args.vertexai or os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower().strip() in ["true", "1", "yes"]

@@ -215,7 +215,8 @@ Audition sample audio generator for prebuilt Gemini voices:
   --sample-text TEXT    Sample announcement text
   --tts-model MODEL     Gemini TTS model (default: gemini-3.8-flash-tts)
   --llm-model MODEL     Gemini LLM model (default: gemini-3.8-flash)
-  --voices VOICES       Comma-separated list of voices (default: Puck,Charon,Kore,Fenrir,Aoede)
+  --voices VOICES       Comma-separated list of voices (default: all vetted voices from config/gemini_voices.json)
+  --featured-only       Generate samples only for core featured stadium personas (Puck, Charon, Kore, Fenrir, Aoede)
   --theme-context TEXT, --announcer-theme TEXT
                         Optional theme/personality context for script synthesis (e.g. pirate, space commander)
   --enhance-scripts MODE
@@ -272,7 +273,17 @@ Mixes voice clips, sound effects, and music with dynamic ducking into the final 
 Automatically fetches pricing from official Google documentation URLs and updates `config/cost_rates.json`:
 ```text
   -c, --config CONFIG   Path to cost_rates.json (default: config/cost_rates.json)
-  --dry-run             Preview pricing matrix updates without modifying config file
+  --check               Audit local rates against official Google documentation
+  --update              Fetch and update pricing matrix and metadata in config/cost_rates.json
+  --sync-readme         Synchronize model references and table recommendations in README.md
+```
+
+### 6. `update_gemini_voices.py`
+Audits and refreshes `config/gemini_voices.json` against official Google Gemini TTS documentation, strictly filtered for English-speaking high-energy stadium announcements:
+```text
+  --check               Audit local voice config against upstream catalog (default)
+  --update              Fetch and save curated high-energy English voices to config/gemini_voices.json
+  --all                 Include full list of excluded voices with rejection reasons
 ```
 
 ---

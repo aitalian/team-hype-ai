@@ -99,12 +99,12 @@ def main():
 
     voice_defs = load_gemini_voices()
     voice_options = [
-        f"{v['name']} ({v.get('gender', '')} | {v.get('category', '')} - {v['description']})"
+        f"{'★ ' if v.get('is_featured') else '  '}{v['name']} ({v.get('gender', '')} | {v.get('announcer_style') or v.get('description', '')})"
         for v in voice_defs
     ]
 
     selected_voice_opt = prompt_choice("Select Announcer Voice Persona:", voice_options, default_idx=0)
-    voice_name = selected_voice_opt.split(" ")[0]
+    voice_name = selected_voice_opt.replace("★", "").strip().split(" ")[0]
 
     # Step 4: AI Models, Audio Tags & Script Enhancement
     print("\n--- STEP 4: AI Models & Audio Tags ---")
