@@ -1,0 +1,74 @@
+{
+  "settings": {
+    "music_folder": "music",
+    "music_file": "background_music-lyria3.5-devfestmtl.mp3",
+    "music_volume_db": -6,
+    "input_folder": "input",
+    "output_folder": "output",
+    "output_filename": "devfest_montreal_80s_assembled.mp3",
+    "roster_config": "roster_templates_canadiens.json",
+    "normalize_output": true,
+    "default_ducking_vol_db": -9,
+    "normalize_voice_clips": true,
+    "default_voice_boost_db": 0
+  },
+  "sequence": [
+    {
+      "file": "sfx_canadiens-de-montreal.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 0,
+      "clip_duration_ms": 4500,
+      "thicken": false
+    },
+    {
+      "file": "Welcome to DevFest.wav",
+      "ducking": false,
+      "pre_delay_ms": 500,
+      "post_delay_ms": 400,
+      "thicken": false
+    },
+    {
+      "file": "Make Some Noise.wav",
+      "ducking": false,
+      "pre_delay_ms": 200,
+      "post_delay_ms": 300,
+      "thicken": true
+    },
+    {
+      "file": "For Your CANADIENS.wav",
+      "ducking": false,
+      "pre_delay_ms": 200,
+      "post_delay_ms": 200,
+      "thicken": false
+    },
+    {
+      "file": "sfx_crowd-cheer-and-applause.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 400,
+      "thicken": false
+    },
+    {
+      "file": "Hitting the Forum Ice.wav",
+      "ducking": true,
+      "pre_delay_ms": 500,
+      "post_delay_ms": 300,
+      "thicken": true
+    },
+    {
+      "file": "$ROSTER",
+      "ducking": true,
+      "pre_delay_ms": 200,
+      "post_delay_ms": 1200,
+      "thicken": false
+    },
+    {
+      "file": "GO HABS GO.wav",
+      "ducking": false,
+      "pre_delay_ms": 400,
+      "post_delay_ms": 3000,
+      "thicken": true
+    }
+  ]
+}
