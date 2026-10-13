@@ -533,4 +533,28 @@ The voice configuration file acts as the single source of truth for all voice-re
   - Displays only vetted high-energy English voices in the interactive persona selector.
   - Highlights featured personas (`★`) with descriptive announcer styles.
 
+---
+
+## 📐 System Architecture, Tooling & Configuration Reference
+
+### 1. End-to-End Pipeline & Tooling Lifecycle
+The full technical production lifecycle operates through 4 distinct decoupled layers:
+1. **Interactive Configuration Layer (`setup_wizard.py`)**: Interactively generates or updates `roster_templates.json` and `run_of_show.json`. Inspects existing configurations to present implied defaults.
+2. **Voice Persona Audition Layer (`generate_voice_samples.py`)**: Synthesizes short audition clips in `samples/` for Google Gemini voice personas (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`) across varying sustained speech styles (`speech_metadata.style`).
+3. **AI Speech & Music Generation Layer (`generate_gemini_audio.py`)**:
+   - Synthesizes LLM announcer scripts using `gemini-3.8-flash` via the Interactions API (`client.interactions.create`) with UPPERCASE emphasis and `<short pause>` events.
+   - Synthesizes PA voice clips using `gemini-3.8-flash-tts` into `input/` using structured `types.SpeechMetadata(speaker=voice_name, style=style)`.
+   - Synthesizes pure instrumental entrance music using `lyria-3.5` into `music/` with negative prompts (`strictly NO vocals, NO singing, NO lyrics`).
+4. **Audio DSP Mixing & Mastering Layer (`assemble_show.py`)**:
+   - Sequences audio events defined in `run_of_show.json`.
+   - Expands the `$ROSTER` macro across all player entries.
+   - Applies pitch thickening (0.95x speed-shift resampled back to 44.1kHz).
+   - Dynamically ducks background music (attenuating -9dB to -15dB during speech clips).
+   - Applies volume gain normalization and exports the final arena master MP3 into `output/`.
+
+### 2. Upstream Tracking Utilities
+- **`update_cost_rates.py`**: Audits and synchronizes `config/cost_rates.json` (model availability matrix and pricing rates) against official Google documentation.
+- **`update_gemini_voices.py`**: Discovers and audits upstream Gemini TTS voices against strict high-energy sports PA curation criteria, maintaining `config/gemini_voices.json`.
+
+
 

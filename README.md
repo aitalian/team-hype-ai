@@ -35,6 +35,105 @@ We encourage forks, community collaboration, and open-source contributions!
 
 ---
 
+## 📐 System Architecture & Audio Pipeline
+
+The diagram below illustrates the end-to-end dataflow of TeamHypeAI: from initial interactive configuration and AI model synthesis via the Google Interactions API, through local DSP audio mixing with Pydub and FFmpeg, to arena Bluetooth soundboard playback.
+
+```mermaid
+flowchart TD
+    subgraph Config["1. Configuration & Setup Layer"]
+        Wizard["setup_wizard.py\n(Interactive Setup Wizard)"]
+        RosterJSON["roster_templates.json\n(Team, Persona & Roster Config)"]
+        ShowJSON["run_of_show.json\n(DSP Timeline & Sequence)"]
+        Wizard --> RosterJSON
+        Wizard --> ShowJSON
+    end
+
+    subgraph AI_Gen["2. Google Gemini & Lyria AI Generation"]
+        Audition["generate_voice_samples.py\n(Voice Persona Audition)"]
+        AudioGen["generate_gemini_audio.py\n(Main AI Audio Generator)"]
+        InteractionsAPI["Google Interactions API\n(client.interactions.create)"]
+        FlashLLM["gemini-3.8-flash\n(Announcer Script Synthesizer)"]
+        FlashTTS["gemini-3.8-flash-tts\n(PA Voice Clips into input/)"]
+        LyriaMusic["lyria-3.5\n(Stadium Music into music/)"]
+
+        RosterJSON --> AudioGen
+        AudioGen --> InteractionsAPI
+        InteractionsAPI --> FlashLLM
+        InteractionsAPI --> FlashTTS
+        InteractionsAPI --> LyriaMusic
+    end
+
+    subgraph DSP_Assembly["3. Audio DSP & Mixing Engine"]
+        Assembler["assemble_show.py\n(Timeline Assembly Engine)"]
+        PydubEngine["Pydub + FFmpeg DSP Core"]
+        Thicken["Pitch Thickening\n(0.95x Speed-Shift Resample)"]
+        Ducking["Dynamic Music Ducking\n(-9dB to -15dB during speech)"]
+        Sequence["Timeline Sequencing\n(Pre/Post Delays & $ROSTER)"]
+
+        FlashTTS --> Assembler
+        LyriaMusic --> Assembler
+        ShowJSON --> Assembler
+        Assembler --> PydubEngine
+        PydubEngine --> Thicken
+        PydubEngine --> Ducking
+        PydubEngine --> Sequence
+    end
+
+    subgraph Output_Layer["4. Master Arena Production"]
+        MasterFile["output/devfest_montreal_80s_assembled.mp3\n(Stadium-Ready Master MP3)"]
+        MobileDevice["Mobile Device / Tablet\n(Bluetooth Audio Stream)"]
+        Receiver["Portable Bluetooth Receiver\n(3.5mm Aux Output)"]
+        Soundboard["Arena Soundboard / PA Mixer\n(Stadium Amplifiers & Speakers)"]
+
+        Sequence --> MasterFile
+        MasterFile --> MobileDevice
+        MobileDevice --> Receiver
+        Receiver --> Soundboard
+    end
+```
+
+### Audio DSP Mixing Sequence Diagram
+The sequence below illustrates how background music ducking, pre/post delays, voice thickening, and `$ROSTER` macro expansion are dynamically orchestrated across the playback timeline:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Music as 🎵 Stadium Entrance Music
+    participant DSP as 🎛️ DSP & Ducking Engine
+    participant Voice as 🎙️ Announcer Voice Clips
+    participant Master as 🔊 Master Arena Output
+
+    Note over Music,Master: Show Starts: Music Swell (pre_sequence_music_ms = 1500ms)
+    Music->>Master: Music playing at baseline (-6dB)
+    
+    Note over Voice,Master: Event 1: Intro Clip ("Welcome to DevFest Montréal!")
+    DSP->>Music: Duck background music down to -9dB
+    Voice->>Master: Play Intro Clip with clean voice (+5dB boost)
+    DSP->>Music: Release ducking -> Music swells back to -6dB
+    
+    Note over Voice,Master: Event 2: Hype Call ("Make Some Noise!")
+    DSP->>Music: Duck music to -9dB
+    Voice->>DSP: Apply Pitch Thickening (0.95x speed-shift)
+    DSP->>Master: Play Thickened Arena Voice Clip
+    DSP->>Music: Release ducking -> Music swells to -6dB (post_delay_ms = 400ms)
+    
+    Note over Voice,Master: Event 3: $ROSTER Loop (#33 Roy, #24 Chelios, #26 Naslund...)
+    loop Each Player in Roster
+        Voice->>Master: "Number 33, Saint Patrick, Pat-REEK RWAH!" (Ducked)
+        DSP->>Music: Brief music swell between players (post_delay_ms = 1200ms)
+    end
+    
+    Note over Voice,Master: Event 4: Climax ("GO HABS GO!")
+    DSP->>Music: Deep ducking (-12dB)
+    Voice->>DSP: Pitch Thickening active
+    DSP->>Master: "GO HABS GO! Les Canadiens!"
+    DSP->>Music: Release ducking -> Outro music guitar solo swells (3000ms)
+    Music->>Master: Fade out music -> End of Show
+```
+
+---
+
 ## 🌟 Key Features
 
 - **Google Gemini & Lyria AI Audio Stack**:
@@ -54,52 +153,299 @@ We encourage forks, community collaboration, and open-source contributions!
 
 ---
 
-## 🚀 Quickstart Guide
+## 🧭 Where to Start: Recommended End-to-End Workflow
 
-### 1. Prerequisites
-- **Python 3.8+** (Supports Python 3.13+)
-- **FFmpeg** (Required for audio manipulation and MP3 encoding):
-  - macOS: `brew install ffmpeg`
-  - Ubuntu/Debian: `sudo apt-get install ffmpeg`
-  - Windows: Download from [ffmpeg.org](https://ffmpeg.org/) and add to system `PATH`.
-- **Google Gemini API Key**: Obtain a key from [Google AI Studio](https://aistudio.google.com/).
+For both new users and seasoned producers, we recommend following this clear 5-step journey:
 
-### 2. Installation
-```bash
-git clone https://github.com/aitalian/team-hype-ai.git
-cd team-hype-ai
-python3 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+```text
+[Step 1: setup_wizard.py] ──► [Step 2: generate_voice_samples.py] ──► [Step 3: generate_gemini_audio.py]
+      (Interactive Setup)             (Audition Announcers)                  (Generate Voice & Music)
+                                                                                       │
+                                                                                       ▼
+[Step 5: Arena PA Playback] ◄───────────────────────────────────────── [Step 4: assemble_show.py]
+    (Live Game-Day Impact)                                                   (Audio DSP Mixing Engine)
 ```
 
-Set your API key:
-```bash
-export GEMINI_API_KEY="your_api_key_here"
-# Or create a local .env file (automatically git-ignored):
-echo 'GEMINI_API_KEY="your_api_key_here"' > .env
-```
-
-### 3. Fast-Track Interactive Setup
-Run the setup wizard to configure your team roster, announcer voice, and music prompt:
+### Step 1: Run the Interactive Setup Wizard (Start Here!)
+Launch [`setup_wizard.py`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/setup_wizard.py). The wizard detects any existing configuration files (`roster_templates.json` and `run_of_show.json`) and loads their values as **implied defaults**. You can press **Enter** to keep existing settings or enter new values for your team:
 ```bash
 python setup_wizard.py
 ```
+*Outputs: `roster_templates_<team>.json` and `run_of_show_<team>.json`.*
 
-### 4. Step 1: Generate AI Audio & Music Assets
+### Step 2 (Optional): Audition Voice Personas
+Before generating audio for an entire team roster, audition Google Gemini's curated high-energy stadium voices (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`) in `samples/`:
 ```bash
-# Preview generation prompts and cost estimate without making API calls:
-python generate_gemini_audio.py --dry-run
-
-# Generate voice clips in input/ and stadium music in music/:
-python generate_gemini_audio.py
+python generate_voice_samples.py --featured-only
 ```
 
-### 5. Step 2: Assemble the Final Audio Mix
+### Step 3: Generate AI Voice Clips & Entrance Music
+Run [`generate_gemini_audio.py`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/generate_gemini_audio.py) using your roster template. First, run a **dry-run** to preview generated announcer dialogue and verify estimated API token costs:
+```bash
+# Preview prompts and cost estimate without calling Google APIs:
+python generate_gemini_audio.py -r roster_templates.json --dry-run
+
+# Generate audio files (saves voice clips in input/ and entrance music in music/):
+python generate_gemini_audio.py -r roster_templates.json
+```
+
+### Step 4: Assemble the Master Stadium Audio Mix
+Stitch and master your voice clips, sound effects, and entrance music using [`assemble_show.py`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/assemble_show.py):
 ```bash
 python assemble_show.py -c run_of_show.json
 ```
-Your final stadium-ready audio file will be saved in `output/` (e.g., `output/devfest_montreal_80s_assembled.mp3`).
+*Outputs: Broadcast-ready master MP3 in `output/` (e.g., `output/devfest_montreal_80s_assembled.mp3`).*
+
+### Step 5: Game-Day Arena Playback
+Copy or stream the assembled MP3 from your phone or tablet to the arena soundboard using a Bluetooth auxiliary receiver.
+
+---
+
+## 🛠️ Comprehensive Utility Scripts Reference
+
+TeamHypeAI provides 6 dedicated CLI utilities designed for distinct stages of the sports audio production lifecycle:
+
+### 1. `setup_wizard.py` - Interactive Team Onboarding Wizard
+- **What it is & Why**: An interactive terminal wizard that guides first-time users through entering team identity, announcer personas, voice selection, AI models, background music prompts, intro clips, and player rosters. It prevents JSON formatting errors and eliminates boilerplate.
+- **Key Feature**: Reads existing `roster_templates.json` and `run_of_show.json` files and presents their values as implied defaults in brackets `[...]`. Pressing Enter accepts the default.
+- **Usage**:
+  ```bash
+  python setup_wizard.py
+  ```
+
+---
+
+### 2. `generate_voice_samples.py` - Announcer Voice Audition Generator
+- **What it is & Why**: Generates short sample audio clips for prebuilt Google Gemini voice personas and saves them in the `samples/` directory. It allows you to audition different voice profiles and delivery styles before running full roster generation.
+- **Key CLI Flags**:
+  - `--featured-only`: Restricts generation to core stadium announcer personas (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`).
+  - `--speech-style "..."`: Sets turn-level delivery style & nuance (e.g. `"excitedly, fast-paced"` or `"shouting, hype"`).
+  - `--regional-accent "..."`: Tests regional accent inflection (e.g. `"French Canadian"`).
+  - `--dry-run`: Previews dialogue and cost projection without calling Google APIs.
+  - `--force`: Regenerates cached sample clips.
+- **Examples**:
+  ```bash
+  # Audition featured voices with default high-energy delivery:
+  python generate_voice_samples.py --featured-only
+
+  # Audition voices with aggressive stadium shouting:
+  python generate_voice_samples.py --featured-only --speech-style "shouting, high-energy"
+
+  # Preview prompts in dry-run mode:
+  python generate_voice_samples.py --dry-run
+  ```
+
+---
+
+### 3. `generate_gemini_audio.py` - Main AI Speech & Music Generator
+- **What it is & Why**: The core generation engine that contacts Google Gemini and Lyria APIs to synthesize PA voice announcements into `input/` and stadium entrance music into `music/`. It handles token estimation, quota batching, rate-limit retries, and platform auto-routing.
+- **Key CLI Flags**:
+  - `-r`, `--roster`: Path to roster template JSON (default: `roster_templates.json`).
+  - `--dry-run`: Previews prompts, dialogue, batch breakdown, and estimated API charges.
+  - `--speech-style "..."`: Overrides default announcer delivery style (alias: `--style`, `--audio-tags`).
+  - `--regional-accent "..."`: Overrides regional accent guidance.
+  - `--aistudio` / `--vertexai`: Forces Google AI Studio or Vertex AI platform (auto-routed by default).
+  - `--legacy-api`: Opts into legacy `generateContent` instead of the Interactions API.
+  - `--batch-script` / `--no-batch-script`: Toggles batched LLM script enhancement (enabled by default).
+  - `--batch-tts` / `--no-batch-tts`: Toggles batched TTS silence-sliced generation (enabled by default).
+  - `--skip-music`: Generates voice clips only.
+  - `--skip-voice`: Generates background music only.
+  - `-f`, `--force`: Regenerates existing cached audio files.
+  - `-y`, `--yes`: Automatically accepts estimated cost prompt.
+- **Examples**:
+  ```bash
+  # Preview dialogue and cost before making API calls:
+  python generate_gemini_audio.py --dry-run
+
+  # Generate entire Montreal Canadiens demo assets:
+  python generate_gemini_audio.py -r roster_templates.json
+
+  # Generate voice clips only for a custom team:
+  python generate_gemini_audio.py -r roster_templates_eagles.json --skip-music
+  ```
+
+---
+
+### 4. `assemble_show.py` - Audio DSP Mixer & Show Stitching Engine
+- **What it is & Why**: An audio engineering engine powered by Pydub and FFmpeg. It reads `run_of_show.json`, sequences audio events, applies pitch thickening, dynamically ducks background music during speech announcements, normalizes audio levels, and exports the master MP3.
+- **Key CLI Flags**:
+  - `-c`, `--config`: Path to Run of Show JSON config (default: `run_of_show.json`).
+  - `-r`, `--roster-config`: Overrides roster template file used for `$ROSTER` macro expansion.
+  - `-f`, `--force`: Forces re-assembly even if target output mix file already exists.
+- **Examples**:
+  ```bash
+  # Assemble default run of show:
+  python assemble_show.py -c run_of_show.json
+
+  # Force re-assembly with a custom roster override:
+  python assemble_show.py -c run_of_show.json -r roster_templates.json -f
+  ```
+
+---
+
+### 5. `update_cost_rates.py` - Model & Pricing Rate Card Tracker
+- **What it is & Why**: Audits and synchronizes model rate cards and platform availability booleans (`ai_studio` vs `vertex_ai`) in [`config/cost_rates.json`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/config/cost_rates.json) against official Google Cloud and Google AI Studio documentation.
+- **Key CLI Flags**:
+  - `--check`: Audits local configuration and reports discrepancies without modifying files.
+  - `--update`: Updates `config/cost_rates.json` with latest rates and platform matrices.
+- **Examples**:
+  ```bash
+  # Audit current pricing rates:
+  python update_cost_rates.py --check
+  ```
+
+---
+
+### 6. `update_gemini_voices.py` - Gemini TTS Voice Catalog Tracker
+- **What it is & Why**: Queries upstream Google Gemini TTS voice catalogs, applies strict high-energy sports announcer filtering, and updates [`config/gemini_voices.json`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/config/gemini_voices.json).
+- **Key CLI Flags**:
+  - `--check`: Audits discovered voices against local configuration.
+  - `--update`: Updates `config/gemini_voices.json` with newly qualified announcer personas.
+- **Examples**:
+  ```bash
+  # Audit stadium voice catalog:
+  python update_gemini_voices.py --check
+  ```
+
+---
+
+## ⚙️ Configuration Files & Fine-Tuning Guide
+
+TeamHypeAI separates team identity and voice configuration (`roster_templates.json`) from audio timeline sequencing and DSP mixing (`run_of_show.json`).
+
+### 1. Fine-Tuning Roster Templates (`roster_templates.json`)
+
+The roster template defines who your team is, how the announcer should speak, how player names are pronounced, and what music should be composed:
+
+```json
+{
+  "team_name": "Montreal Canadiens",
+  "team_mascot": "Canadiens",
+  "models": {
+    "api_engine": "interactions",
+    "tts_model": "gemini-3.8-flash-tts",
+    "llm_model": "gemini-3.8-flash",
+    "music_model": "lyria-3.5",
+    "enhance_scripts": "auto",
+    "batch_script_enhancement": true,
+    "batch_tts": true,
+    "tts_batch_size": 10
+  },
+  "announcer_persona": {
+    "voice_name": "Puck",
+    "speech_style": "excitedly, fast-paced arena rock announcer with a Quebec French Canadian accent on French names and places",
+    "prompt_prefix": "Say rapidly with intense, fast-paced stadium PA announcer energy: ",
+    "theme_context": "1980s retro arena rock stadium theme for DevFest Montreal...",
+    "regional_accent": "French Canadian",
+    "accent_guidance": "Authentic Quebec French Canadian pronunciation on Francophone names"
+  },
+  "player_template": "Number {number}, <short pause> {name}!",
+  "roster": [
+    {
+      "number": "33",
+      "name": "Patrick Roy",
+      "phonetic": "Pat-REEK RWAH",
+      "custom_intro": "Stopping all the pucks, rookie sensation in net, <short pause> wearing number {number}, Saint Patrick, {phonetic}!",
+      "speech_style": "excitedly, very fast Quebec arena announcer",
+      "post_delay_ms": 1500
+    }
+  ],
+  "intro_clips": [
+    {
+      "filename": "Welcome to DevFest.wav",
+      "text": "Welcome to DevFest Montréal! Step back to 1986!",
+      "phonetic": "Welcome to Dev-Fest Mohn-ray-AL! <short pause> Step back to 1986!",
+      "speech_style": "excitedly, high enthusiasm with French Canadian inflection"
+    }
+  ],
+  "music": {
+    "filename": "background_music-lyria3.5-devfestmtl",
+    "prompt": "High-energy 1980s retro arena rock sports entrance track featuring driving analog synthesizers, punchy gated reverb electronic drums, screaming electric guitar solos and power chords, strictly NO vocals.",
+    "duration_seconds": 30,
+    "loopable": true
+  }
+}
+```
+
+#### Fine-Tuning Tips for Roster Configuration:
+1. **Phonetic Pronunciation Respellings (`phonetic`)**: Standard TTS engines often struggle with regional or foreign names. Use hyphens and capital letters for stress:
+   - *Patrick Roy* -> `"Pat-REEK RWAH"`
+   - *Mats Naslund* -> `"Mats NAHZ-lund"`
+   - *Larry Robinson* -> `"LAIR-ee ROB-in-sun"`
+   - *Jersey Number Respellings (`phonetic_number`)*: For double digits that need clear cadence, use `"Six. Sev-uhn."` for #67.
+2. **Sustained Speech Style (`speech_style`) vs Point-in-Time Vocal Tags (`<...>`)**:
+   - **Turn-Level Speech Style**: Passed via `announcer_persona.speech_style` or `roster[i].speech_style`. Always use clean descriptive strings without brackets (e.g. `"excitedly, fast-paced"`, `"shouting, hype"`).
+   - **Inline Vocal Events**: Placed inside dialogue text using angle brackets (e.g. `<short pause>`, `<cheer>`, `<sigh>`).
+3. **Custom Intro Overrides (`custom_intro`)**: Overrides the default `player_template` for individual star players, team captains, or goalies. You can reference `{number}`, `{name}`, and `{phonetic}` macros.
+4. **Instrumental Entrance Music Prompts (`music.prompt`)**: To ensure Lyria generates pure instrumental tracks, specify instrument textures (e.g., *driving electric guitars*, *analog synthesizers*, *punchy drums*) and avoid vocal descriptions. TeamHypeAI automatically wraps your prompt with `strictly NO vocals, NO lyrics`.
+
+---
+
+### 2. Fine-Tuning Run of Show (`run_of_show.json`)
+
+The Run of Show config governs the digital audio workstation (DSP) mixing engine, audio levels, ducking curves, and playback sequence:
+
+```json
+{
+  "settings": {
+    "music_folder": "music",
+    "music_file": "background_music-lyria3.5-devfestmtl.mp3",
+    "music_volume_db": -6,
+    "default_ducking_vol_db": -9,
+    "default_voice_boost_db": 0,
+    "pre_sequence_music_ms": 1500,
+    "initial_silence_ms": 0,
+    "normalize_output": true,
+    "normalize_voice_clips": true,
+    "input_folder": "input",
+    "output_folder": "output",
+    "output_filename": "devfest_montreal_80s_assembled.mp3"
+  },
+  "sequence": [
+    {
+      "file": "Welcome to DevFest.wav",
+      "ducking": false,
+      "pre_delay_ms": 500,
+      "post_delay_ms": 400,
+      "thicken": false
+    },
+    {
+      "file": "Make Some Noise.wav",
+      "ducking": false,
+      "pre_delay_ms": 200,
+      "post_delay_ms": 300,
+      "thicken": true
+    },
+    {
+      "file": "$ROSTER",
+      "ducking": true,
+      "pre_delay_ms": 200,
+      "post_delay_ms": 1200,
+      "thicken": false
+    },
+    {
+      "file": "GO HABS GO.wav",
+      "ducking": false,
+      "pre_delay_ms": 400,
+      "post_delay_ms": 3000,
+      "thicken": true
+    }
+  ]
+}
+```
+
+#### Fine-Tuning Tips for Run of Show:
+1. **Dynamic Background Ducking (`ducking` & `default_ducking_vol_db`)**:
+   - When `ducking: true`, the background entrance music volume is attenuated down to `default_ducking_vol_db` (typically `-9dB` to `-15dB`) while the speech clip plays, ensuring vocal clarity.
+   - For high-energy shouting clips over driving rock music, setting ducking to `false` lets the music pump at full energy behind the voice.
+2. **The `$ROSTER` Macro**:
+   - Placing `{"file": "$ROSTER"}` in `sequence` automatically expands into individual announcement events for every player defined in your roster file, in exact roster order.
+   - The `pre_delay_ms` and `post_delay_ms` defined on `$ROSTER` govern the pause between each player announcement.
+3. **Voice Pitch Thickening (`thicken: true`)**:
+   - Applies a 0.95x speed-shift resampled back to 44.1kHz. This drops the vocal pitch slightly while preserving duration, giving youth PA announcements the booming, resonant authority of an NHL arena announcer.
+4. **Pacing & Timing (`pre_delay_ms` & `post_delay_ms`)**:
+   - `pre_delay_ms`: Extra milliseconds of music before the voice announcement starts (creates dramatic anticipation).
+   - `post_delay_ms`: Milliseconds of music swell after the announcement ends before the next clip starts (allows the crowd to cheer or music beat to drop).
 
 ---
 
@@ -129,23 +475,6 @@ TeamHypeAI allows full flexibility to mix AI-generated audio with custom human-r
 1. **Custom Music**: Place an audio file at `music/background_music.mp3`. The pipeline automatically skips Lyria generation and mixes your music.
 2. **Custom SFX & Goal Horns**: Drop audio files (e.g. `sfx_goal_horn.wav`, `Make Some Noise.wav`) into `input/`. Existing files are preserved and never overwritten unless `--force` is specified.
 3. **Hybrid Roster**: Combine AI-generated introductions for player intros with pre-recorded coach clips or team chants.
-
----
-
-## 🛠️ CLI Utilities Overview
-
-- `python setup_wizard.py`: Interactive onboarding wizard for creating team roster configurations.
-- `python generate_gemini_audio.py`: Main audio generator for AI voice clips and Lyria entrance music.
-  - `--dry-run`: Preview prompts, clean dialogue, and estimated cost.
-  - `--speech-style "excitedly, fast-paced"`: Sustained announcer delivery style & nuance.
-  - `--aistudio` / `--vertexai`: Select backend platform (auto-routed dynamically by default).
-  - `--regional-accent "French Canadian"`: Inject regional pronunciation guidelines.
-  - `--batch-script` / `--batch-tts`: Enable high-efficiency API batching (enabled by default).
-  - `--legacy-api`: Opt into legacy `generateContent` API instead of the Interactions API.
-- `python assemble_show.py -c run_of_show.json`: Stitches voice clips, sound effects, and music with dynamic ducking.
-- `python generate_voice_samples.py`: Generates voice audition clips in `samples/` for prebuilt personas (`--featured-only`, `--speech-style`).
-- `python update_cost_rates.py --check`: Audits local rate cards against official Google documentation.
-- `python update_gemini_voices.py --check`: Audits local announcer voice personas against Google TTS catalog.
 
 ---
 

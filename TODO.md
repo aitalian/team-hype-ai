@@ -16,6 +16,7 @@
 
 ## ✅ Completed Milestones
 
+- [x] **Comprehensive Utility Documentation, Architecture Diagrams & Tuning Guide**: Expanded `README.md` and `GEMINI.md` with Mermaid architecture and audio DSP timeline diagrams, end-to-end user workflow, exhaustive utility script reference for all 6 CLI tools, and a configuration fine-tuning guide for roster and run of show JSON templates.
 - [x] **Gemini 3.8 Flash TTS Speech Style & Nuance Modernization**: Modernized legacy "audio tags" terminology to official Gemini 3.8 Flash TTS architecture: sustained turn-level delivery style & nuance (`speech_metadata.style`, `--speech-style`, unbracketed) vs point-in-time inline tags (`<short pause>`, angle brackets), maintaining backwards compatibility aliases for `--audio-tags`.
 - [x] **Setup Wizard Implied Defaults**: Updated `setup_wizard.py` to read existing `roster_templates.json` and `run_of_show.json` as implied defaults across all prompts, preserving hardcoded defaults as fallback only when files are absent.
 - [x] **Public GitHub Release Readiness**: Cleaned and refactored documentation across `README.md`, `GEMINI.md`, `PROMPT.md`, `TODO.md`, and `LOG.md` with strict DRY principles, DevFest Montreal context, slides placeholders, and open-source contribution guidelines.

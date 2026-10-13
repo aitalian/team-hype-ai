@@ -7,6 +7,14 @@
 
 ---
 
+## [2026-10-12] Comprehensive Utility Documentation, Architecture Diagrams & Tuning Guide
+- **Visual Architecture & Pipeline Diagrams**: Embedded Mermaid flowcharts and sequence diagrams in `README.md` illustrating the end-to-end multi-layer pipeline and the audio DSP mixing sequence (ducking envelopes, thickening, pre/post delays, and `$ROSTER` macro expansion).
+- **Recommended User Workflow ("Where to Start")**: Delineated an approachable 5-step roadmap prioritizing `setup_wizard.py` as the interactive starting point, followed by voice auditioning, AI asset generation, and show assembly.
+- **Exhaustive Utility Scripts Reference**: Documented all 6 CLI utilities (`setup_wizard.py`, `generate_voice_samples.py`, `generate_gemini_audio.py`, `assemble_show.py`, `update_cost_rates.py`, `update_gemini_voices.py`) detailing their purpose, architectural rationale, options, and copy-pasteable command examples.
+- **Configuration Fine-Tuning Guide**: Added detailed schema breakdowns and tuning advice for `roster_templates.json` (phonetics, sustained speech styles, player templates, music prompts) and `run_of_show.json` (ducking levels, sequence timing, delays, voice thickening).
+
+---
+
 ## [2026-10-12] Gemini 3.8 Flash TTS Speech Style & Nuance Modernization
 - **Official Terminology Realignment**: Modernized the legacy term "audio tags" to match official Google Gemini 3.8 Flash TTS documentation: sustained turn-level delivery style & nuance (`speech_metadata.style`) vs point-in-time inline tags (`<short pause>`, `<cheer>`, `<breath>`).
 - **Bracket Deprecation & Prosody Optimization**: Replaced legacy square-bracket notation (`[excitedly]`) with clean unbracketed descriptive strings (e.g. `"excitedly, fast-paced"`, `"shouting, hype"`), preventing modern verbatim speech synthesis models from inadvertently vocalizing brackets.
