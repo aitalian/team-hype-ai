@@ -27,6 +27,7 @@ from common import (
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_ENHANCE_MODE,
+    DEFAULT_SPEECH_STYLE,
     DEFAULT_AUDIO_TAGS,
     clean_spoken_text,
     format_speech_style,
@@ -104,7 +105,7 @@ def main():
     parser.add_argument("--llm-model", default=DEFAULT_LLM_MODEL, help=f"Gemini LLM model (default: {DEFAULT_LLM_MODEL})")
     parser.add_argument("--voices", default=",".join(PREBUILT_VOICES), help=f"Comma-separated list of voices (default: {','.join(PREBUILT_VOICES)})")
     parser.add_argument("--featured-only", action="store_true", default=False, help="Only generate samples for core featured stadium voice personas (Puck, Charon, Kore, Fenrir, Aoede)")
-    parser.add_argument("--audio-tags", default=DEFAULT_AUDIO_TAGS, help=f"Gemini TTS Audio Tags (default: {DEFAULT_AUDIO_TAGS})")
+    parser.add_argument("--speech-style", "--style", "--audio-tags", dest="speech_style", default=DEFAULT_SPEECH_STYLE, help=f"Gemini TTS Speech Style & Nuance (default: '{DEFAULT_SPEECH_STYLE}')")
     parser.add_argument("--theme-context", "--announcer-theme", default=None, help="Optional theme/personality context for script synthesis (e.g. pirate, space commander)")
     parser.add_argument("--regional-accent", "--accent", default=None, help="Optional regional accent guidance (e.g. 'French Canadian')")
     parser.add_argument("--enhance-scripts", choices=["auto", "always", "never"], default=DEFAULT_ENHANCE_MODE, help="LLM script enhancement mode (default: auto)")
@@ -129,8 +130,7 @@ def main():
             featured_names = ["Puck", "Charon", "Kore", "Fenrir", "Aoede"]
         voice_list = [v for v in voice_list if v in featured_names]
     regional_accent = args.regional_accent or ""
-    raw_audio_tag = format_audio_tag(args.audio_tags)
-    audio_tag = format_speech_style(raw_audio_tag, regional_accent=regional_accent)
+    speech_style = format_speech_style(args.speech_style, regional_accent=regional_accent)
 
     is_vertex, platform_desc, gcp_proj, gcp_loc = resolve_platform_backend(
         cli_vertexai=args.vertexai,
@@ -158,7 +158,7 @@ def main():
     print(f"   Output Directory: {args.output_dir}")
     print(f"   TTS Model:        {args.tts_model}")
     print(f"   LLM Model:        {args.llm_model}")
-    print(f"   Audio Tags:       {audio_tag}")
+    print(f"   Speech Style:     {speech_style}")
     if regional_accent:
         print(f"   Regional Accent:  {regional_accent}")
     print(f"   Sample Script:    \"{args.sample_text}\"")
@@ -196,9 +196,9 @@ def main():
             fname = f"{voice}.wav"
             status = " [Will Generate]" if voice in to_generate else " [Existing File Cached]"
             enhance_tag = f" 🧠 [LLM Enhanced via {args.llm_model}]" if should_enhance else ""
-            tag_info = f" [Tone: {audio_tag}]" if audio_tag else ""
+            style_info = f" [Speech Style: '{speech_style}']" if speech_style else ""
             print(f"📁 {os.path.join(args.output_dir, fname)} ({voice}){status}")
-            print(f"   Dialogue: \"{clean_sample_text}\"{tag_info}{enhance_tag}\n")
+            print(f"   Dialogue: \"{clean_sample_text}\"{style_info}{enhance_tag}\n")
         return
 
     if not args.yes and sys.stdin.isatty():
@@ -237,7 +237,7 @@ def main():
                 persona_style=persona_style,
                 theme_context=args.theme_context or "",
                 delivery_instructions=DEFAULT_PREFIX,
-                audio_tag=audio_tag,
+                speech_style=speech_style,
                 regional_accent=regional_accent,
                 api_engine=api_engine
             )
@@ -252,7 +252,7 @@ def main():
             output_dir=args.output_dir,
             model_name=args.tts_model,
             voice_name=voice,
-            style=audio_tag or DEFAULT_AUDIO_TAGS,
+            style=speech_style or DEFAULT_SPEECH_STYLE,
             force=args.force,
             api_engine=api_engine
         )

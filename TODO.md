@@ -16,6 +16,8 @@
 
 ## ✅ Completed Milestones
 
+- [x] **Gemini 3.8 Flash TTS Speech Style & Nuance Modernization**: Modernized legacy "audio tags" terminology to official Gemini 3.8 Flash TTS architecture: sustained turn-level delivery style & nuance (`speech_metadata.style`, `--speech-style`, unbracketed) vs point-in-time inline tags (`<short pause>`, angle brackets), maintaining backwards compatibility aliases for `--audio-tags`.
+- [x] **Setup Wizard Implied Defaults**: Updated `setup_wizard.py` to read existing `roster_templates.json` and `run_of_show.json` as implied defaults across all prompts, preserving hardcoded defaults as fallback only when files are absent.
 - [x] **Public GitHub Release Readiness**: Cleaned and refactored documentation across `README.md`, `GEMINI.md`, `PROMPT.md`, `TODO.md`, and `LOG.md` with strict DRY principles, DevFest Montreal context, slides placeholders, and open-source contribution guidelines.
 - [x] **Model Platform Availability Architecture**: Added structured `availability` property to `config/cost_rates.json` (v2.2.0), implemented dynamic resolution helpers in `common.py`, and eliminated hardcoded model string checks.
 - [x] **All-or-Nothing Auto-Routing & Pure Instrumental Music**: Automatically routes `lyria-3.5` to Google AI Studio Interactions API with pure instrumental audio modality constraints (strictly NO vocals/lyrics).

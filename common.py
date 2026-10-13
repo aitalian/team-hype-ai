@@ -48,7 +48,8 @@ DEFAULT_LLM_MODEL = "gemini-3.8-flash"
 DEFAULT_MUSIC_MODEL = "lyria-3.5"
 DEFAULT_VOICE_PERSONA = "Puck"
 DEFAULT_ENHANCE_MODE = "auto"
-DEFAULT_AUDIO_TAGS = "excitedly, fast-paced arena announcer"
+DEFAULT_SPEECH_STYLE = "excitedly, fast-paced arena announcer"
+DEFAULT_AUDIO_TAGS = DEFAULT_SPEECH_STYLE  # Backwards-compatible alias for legacy references
 
 # API Engine Constants (Interactions API preferred as of June 2026)
 API_ENGINE_INTERACTIONS = "interactions"
@@ -63,13 +64,14 @@ VALID_POINT_IN_TIME_TAGS = {
 def clean_style_directive(style: str) -> str:
     """
     Cleans a style string for Gemini 3.8 Flash TTS speech_metadata.style.
-    Strips enclosing brackets or angle tags if present (e.g. '[excitedly]' -> 'excitedly').
+    Strips legacy enclosing brackets or angle tags if present (e.g. '[excitedly]' -> 'excitedly').
     """
     if not style:
         return ""
     s = str(style).strip()
-    s = re.sub(r"^\[|\]$", "", s).strip()
+    s = re.sub(r"[\[\]]", "", s).strip()
     s = re.sub(r"^<|>$", "", s).strip()
+    s = re.sub(r"\s+", " ", s).strip()
     return s
 
 
@@ -96,6 +98,13 @@ def format_speech_style(base_style: str, regional_accent: str = None, accent_gui
         return f"{clean_base}, {accent_clause}"
     return accent_clause
 
+
+def format_audio_tag(base_style: str, regional_accent: str = None, accent_guidance: str = None) -> str:
+    """
+    Backwards-compatible alias for format_speech_style().
+    Normalizes legacy audio tags or style strings into clean delivery style strings for Gemini 3.8 Flash TTS speech_metadata.style.
+    """
+    return format_speech_style(base_style, regional_accent=regional_accent, accent_guidance=accent_guidance)
 
 
 def clean_spoken_text(text: str, prefix: str = "", allow_vocal_tags: bool = True) -> str:

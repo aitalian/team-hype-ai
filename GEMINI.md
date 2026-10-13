@@ -58,7 +58,7 @@
   - `"never"`: Disables script enhancement completely.
 - **Theme / Personality Context Support**: Supports optional team-level (`announcer_persona.theme_context`) and per-item (`roster[i].theme_context`, `intro_clips[i].theme_context`) theme descriptions (e.g. nautical pirate theme for the Admirals, space commander, retro rockstar). Weaved into LLM script enhancement prompts (`gemini-3.8-flash`) to generate thematic phrasing, puns, and tone accents.
 - **Batched Script Enhancement**: Combines script enhancement prompts for all roster clips into a single JSON API request, returning enhanced scripts in bulk (reduces LLM calls from N to 1).
-- **Tone & Directives Ingestion**: Accepts `delivery_instructions` (prompt prefix) and `audio_tag` per item to steer vocal cadence and energy, producing strictly sanitized dialogue for speech synthesis.
+- **Tone & Directives Ingestion**: Accepts `delivery_instructions` (prompt prefix) and `speech_style` / style cues per item to steer vocal cadence, energy, and emphasis, producing strictly sanitized dialogue for speech synthesis.
 - **Functionality**: Formats raw text into rapid-fire, upper-case emphasized, stadium PA scripts with phonetic inflections before sending to TTS synthesis.
 
 ### 3. Stadium Entrance Music Generator
@@ -351,7 +351,7 @@ TeamHypeAI maintains a dedicated subset of models specialized for sports stadium
    - `gemini-3.5-flash`: Legacy Flash model ($1.50 in / $9.00 out Standard, $0.75 in / $4.50 out Batch).
    - `gemini-3.5-flash-lite`: Ultra-low cost script formatting ($0.30 in / $2.50 out Standard, $0.15 in / $1.25 out Batch).
 2. **Text-to-Speech Engine (`tts_voice`)**:
-   - `gemini-3.8-flash-tts`: Studio-grade speech generation supporting expressive bracketed audio tags ($0.50 in / $10.00 out AI Studio, $1.00 in / $20.00 out Vertex AI).
+   - `gemini-3.8-flash-tts`: Studio-grade speech generation supporting structured `speech_metadata.style` and inline angle-bracket vocal events ($0.50 in / $10.00 out AI Studio, $1.00 in / $20.00 out Vertex AI).
    - `gemini-3.8-flash-lite-tts`: High-throughput conversational speech ($0.30 in / $5.00 out AI Studio, $0.60 in / $10.00 out Vertex AI).
    - `gemini-3.1-flash-tts-preview`: Controllable low-latency speech generation preview ($0.50 in / $10.00 out AI Studio, $1.00 in / $20.00 out Vertex AI).
 3. **Stadium Entrance Music Generator (`music_generator`)**:
@@ -442,13 +442,13 @@ The voice catalog is strictly constrained according to two mandatory rules:
 ### 3. Curated Voice Catalog Breakdown (14 Vetted / 16 Excluded)
 
 #### Core Featured Stadium Personas (5):
-| Persona | Gender | Tone | Announcer Persona Style | Default Audio Tags |
+| Persona | Gender | Tone | Announcer Persona Style | Default Speech Style & Nuance |
 | :--- | :--- | :--- | :--- | :--- |
-| **`Puck`** *(Default)* | Male | Upbeat | Energetic / Expressive PA Announcer | `[excitedly, fast-paced]` |
-| **`Charon`** | Male | Informative | Deep / Authoritative Arena Voice | `[authoritative, punchy]` |
-| **`Kore`** | Female | Firm | Punchy / High Enthusiasm PA Voice | `[excitedly]` |
-| **`Fenrir`** | Male | Excitable | Gritty / Aggressive Arena Voice | `[shouting, hype]` |
-| **`Aoede`** | Female | Breezy | Smooth / Championship PA Announcer | `[excitedly, fast]` |
+| **`Puck`** *(Default)* | Male | Upbeat | Energetic / Expressive PA Announcer | `"excitedly, fast-paced"` |
+| **`Charon`** | Male | Informative | Deep / Authoritative Arena Voice | `"authoritative, punchy"` |
+| **`Kore`** | Female | Firm | Punchy / High Enthusiasm PA Voice | `"excitedly"` |
+| **`Fenrir`** | Male | Excitable | Gritty / Aggressive Arena Voice | `"shouting, hype"` |
+| **`Aoede`** | Female | Breezy | Smooth / Championship PA Announcer | `"excitedly, fast"` |
 
 #### Additional Vetted High-Energy Personas (9):
 | Persona | Gender | Tone | Announcer Persona Style |

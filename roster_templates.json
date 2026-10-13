@@ -1,4 +1,6 @@
 {
+  "team_name": "Montreal Canadiens",
+  "team_mascot": "Canadiens",
   "models": {
     "api_engine": "interactions",
     "tts_model": "gemini-3.8-flash-tts",
@@ -15,7 +17,7 @@
     "accent_guidance": "Authentic Quebec French Canadian pronunciation on Francophone names and places (e.g., Montréal, Canadiens, Patrick Roy, Forum)",
     "theme_context": "1980s retro arena rock stadium theme for DevFest Montreal, celebrating the 1986 Stanley Cup Champion Montreal Canadiens for a passionate French Canadian audience in Quebec. High-voltage, neon arena rock swagger, synthwave vibes, driving guitar riffs, bilingual Montreal hockey arena hype, and authentic French Canadian pronunciation for all Francophone player names, places, and team references (Montréal, Canadiens, Patrick Roy, Forum).",
     "voice_name": "Puck",
-    "audio_tags": "excitedly, fast-paced arena rock announcer with a Quebec French Canadian accent on French names and places",
+    "speech_style": "excitedly, fast-paced arena rock announcer with a Quebec French Canadian accent on French names and places",
     "prompt_prefix": "Say rapidly with intense, fast-paced 1980s stadium PA announcer energy, retro arena swagger, quick delivery, authentic French Canadian inflection on Francophone names, and high enthusiasm: "
   },
   "player_template": "Number {number}, <short pause> {name}!",
@@ -25,7 +27,7 @@
       "name": "Patrick Roy",
       "phonetic": "Pat-REEK RWAH",
       "custom_intro": "Stopping all the pucks, the rookie sensation in net, Conn Smythe Trophy winner, <short pause> wearing number {number}, Saint Patrick, {phonetic}!",
-      "audio_tags": "excitedly, very fast Quebec arena announcer",
+      "speech_style": "excitedly, very fast Quebec arena announcer",
       "post_delay_ms": 1500
     },
     {
@@ -33,28 +35,28 @@
       "name": "Chris Chelios",
       "phonetic": "Chris CHEL-ee-os",
       "custom_intro": "Rocking the blueline, <short pause> wearing number {number}, {phonetic}!",
-      "audio_tags": "excitedly, fast-paced arena announcer"
+      "speech_style": "excitedly, fast-paced arena announcer"
     },
     {
       "number": "26",
       "name": "Mats Naslund",
       "phonetic": "Mats NAHZ-lund",
       "custom_intro": "Leading the scoring attack, le Petit Viking, <short pause> wearing number {number}, the Little Viking, {phonetic}!",
-      "audio_tags": "excitedly, fast-paced arena announcer"
+      "speech_style": "excitedly, fast-paced arena announcer"
     },
     {
       "number": "19",
       "name": "Larry Robinson",
       "phonetic": "LAIR-ee ROB-in-sun",
       "custom_intro": "Hall of Fame legend on defense, le Big Bird, <short pause> wearing number {number}, Big Bird, {phonetic}!",
-      "audio_tags": "excitedly, fast-paced arena announcer"
+      "speech_style": "excitedly, fast-paced arena announcer"
     },
     {
       "number": "23",
       "name": "Bob Gainey",
       "phonetic": "Bob GAY-nee",
       "custom_intro": "Your Team Captain, le Capitaine, <short pause> wearing number {number}, Captain {phonetic}!",
-      "audio_tags": "shouting, high-energy Quebec stadium hype"
+      "speech_style": "shouting, high-energy Quebec stadium hype"
     }
   ],
   "intro_clips": [
@@ -62,31 +64,31 @@
       "filename": "Welcome to DevFest.wav",
       "text": "Welcome to DevFest Montréal! Step back to 1986!",
       "phonetic": "Welcome to Dev-Fest Mohn-ray-AL! <short pause> Step back to 1986!",
-      "audio_tags": "excitedly, high enthusiasm with French Canadian inflection"
+      "speech_style": "excitedly, high enthusiasm with French Canadian inflection"
     },
     {
       "filename": "Make Some Noise.wav",
       "text": "Montréal, make some noise! Faites du bruit!",
       "phonetic": "Mohn-ray-AL, <short pause> faites du bruit, make some noise!",
-      "audio_tags": "shouting, Quebec arena crowd hype"
+      "speech_style": "shouting, Quebec arena crowd hype"
     },
     {
       "filename": "For Your CANADIENS.wav",
       "text": "For your 1986 Stanley Cup Champions, your Montreal Canadiens!",
       "phonetic": "For your 1986 Stanley Cup Champions, <short pause> vos Canadiens de Mohn-ray-AL!",
-      "audio_tags": "excitedly, very fast Quebec arena announcer"
+      "speech_style": "excitedly, very fast Quebec arena announcer"
     },
     {
       "filename": "Hitting the Forum Ice.wav",
       "text": "Hitting the Montreal Forum ice!",
       "phonetic": "Sur la glace du Forum de Mohn-ray-AL! <short pause> Hitting the Montreal Forum ice!",
-      "audio_tags": "excitedly, fast-paced French Canadian arena announcer"
+      "speech_style": "excitedly, fast-paced French Canadian arena announcer"
     },
     {
       "filename": "GO HABS GO.wav",
       "text": "Go Habs Go! Les Canadiens! Let's go DevFest!",
       "phonetic": "GO HABS GO! <short pause> Les Canadiens! <short pause> Let's go Dev-Fest!",
-      "audio_tags": "shouting, Quebec stadium hype"
+      "speech_style": "shouting, Quebec stadium hype"
     }
   ],
   "music": {

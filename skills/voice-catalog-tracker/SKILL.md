@@ -36,13 +36,13 @@ TeamHypeAI strictly constrains voice personas to voices suitable for youth sport
 ### 🌟 Core Featured Stadium Personas
 These 5 personas are highlighted across team templates, sample auditions, and documentation:
 
-| Persona | Gender | Tone | Announcer Persona Style | Default Audio Tags |
+| Persona | Gender | Tone | Announcer Persona Style | Default Speech Style & Nuance |
 | :--- | :--- | :--- | :--- | :--- |
-| **`Puck`** *(Default)* | Male | Upbeat | Energetic / Expressive PA Announcer | `[excitedly, fast-paced]` |
-| **`Charon`** | Male | Informative | Deep / Authoritative Arena Voice | `[authoritative, punchy]` |
-| **`Kore`** | Female | Firm | Punchy / High Enthusiasm PA Voice | `[excitedly]` |
-| **`Fenrir`** | Male | Excitable | Gritty / Aggressive Arena Voice | `[shouting, hype]` |
-| **`Aoede`** | Female | Breezy | Smooth / Championship PA Announcer | `[excitedly, fast]` |
+| **`Puck`** *(Default)* | Male | Upbeat | Energetic / Expressive PA Announcer | `excitedly, fast-paced` |
+| **`Charon`** | Male | Informative | Deep / Authoritative Arena Voice | `authoritative, punchy` |
+| **`Kore`** | Female | Firm | Punchy / High Enthusiasm PA Voice | `excitedly` |
+| **`Fenrir`** | Male | Excitable | Gritty / Aggressive Arena Voice | `shouting, hype` |
+| **`Aoede`** | Female | Breezy | Smooth / Championship PA Announcer | `excitedly, fast` |
 
 ### 🔊 Additional Vetted High-Energy Personas
 Extended English voices that satisfy high-energy sports delivery criteria:

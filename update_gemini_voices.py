@@ -217,7 +217,8 @@ def build_curated_voices_json(upstream_voices: List[Dict[str, Any]], config: Dic
                     "is_featured": is_feat,
                     "announcer_style": f"{v.get('tone', 'Dynamic')} Sports Announcer",
                     "energy_rating": "high",
-                    "recommended_tags": "[excitedly, fast-paced]",
+                    "recommended_style": "excitedly, fast-paced",
+                    "recommended_tags": "excitedly, fast-paced",
                     "notes": f"Discovered high-energy voice persona ({v.get('tone')})."
                 }
             curated.append(entry)
@@ -328,7 +329,8 @@ def update_voice_catalog(config: Dict[str, Any]) -> None:
     print("\n🌟 Featured Personas in Catalog:")
     for v in curated_data["voices"]:
         if v.get("is_featured"):
-            print(f"  • {v['name']:<10} ({v['gender']}, {v['tone']}) -> {v.get('announcer_style', '')} {v.get('recommended_tags', '')}")
+            style_cue = v.get("recommended_style") or v.get("recommended_tags", "")
+            print(f"  • {v['name']:<10} ({v['gender']}, {v['tone']}) -> {v.get('announcer_style', '')} [{style_cue}]")
 
     print("\n🎙️  Additional Vetted Announcer Personas:")
     for v in curated_data["voices"]:

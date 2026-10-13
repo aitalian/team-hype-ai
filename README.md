@@ -39,7 +39,7 @@ We encourage forks, community collaboration, and open-source contributions!
 
 - **Google Gemini & Lyria AI Audio Stack**:
   - **Script Synthesis**: `gemini-3.8-flash` enhances raw roster entries into UPPERCASE-emphasized stadium announcements with authentic phonetics and tone cues.
-  - **Text-to-Speech Engine**: `gemini-3.8-flash-tts` generates high-energy PA voice clips using prebuilt personas (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`) and native `types.SpeechMetadata`.
+  - **Text-to-Speech Engine**: `gemini-3.8-flash-tts` generates high-energy PA voice clips using prebuilt personas (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`) and native `types.SpeechMetadata` with sustained speech style (`speech_metadata.style`) and point-in-time inline tags (`<short pause>`).
   - **Stadium Entrance Music**: `lyria-3.5` synthesizes loopable, pure-instrumental entrance music tracks (strictly NO vocals or lyrics).
 - **Google Interactions API Standard**: Native integration with Google's preferred June 2026 **Interactions API** (`client.interactions.create`), with automatic backwards compatibility (`--legacy-api`) and auto-fallback.
 - **Dynamic Platform Auto-Routing**: Automatically routes to **Google AI Studio** for AI Studio-exclusive models (like `lyria-3.5`) or **Google Cloud Vertex AI** for enterprise workloads, seamlessly overriding `.env` defaults.
@@ -137,12 +137,13 @@ TeamHypeAI allows full flexibility to mix AI-generated audio with custom human-r
 - `python setup_wizard.py`: Interactive onboarding wizard for creating team roster configurations.
 - `python generate_gemini_audio.py`: Main audio generator for AI voice clips and Lyria entrance music.
   - `--dry-run`: Preview prompts, clean dialogue, and estimated cost.
+  - `--speech-style "excitedly, fast-paced"`: Sustained announcer delivery style & nuance.
   - `--aistudio` / `--vertexai`: Select backend platform (auto-routed dynamically by default).
   - `--regional-accent "French Canadian"`: Inject regional pronunciation guidelines.
   - `--batch-script` / `--batch-tts`: Enable high-efficiency API batching (enabled by default).
   - `--legacy-api`: Opt into legacy `generateContent` API instead of the Interactions API.
 - `python assemble_show.py -c run_of_show.json`: Stitches voice clips, sound effects, and music with dynamic ducking.
-- `python generate_voice_samples.py`: Generates voice audition clips in `samples/` for prebuilt personas.
+- `python generate_voice_samples.py`: Generates voice audition clips in `samples/` for prebuilt personas (`--featured-only`, `--speech-style`).
 - `python update_cost_rates.py --check`: Audits local rate cards against official Google documentation.
 - `python update_gemini_voices.py --check`: Audits local announcer voice personas against Google TTS catalog.
 

@@ -27,7 +27,7 @@
 2. **Google GenAI Architecture & API Standards**:
    - **Interactions API (`client.interactions.create`)**: June 2026 preferred standard across script enhancement (`gemini-3.8-flash`), speech generation (`gemini-3.8-flash-tts`), and music generation (`lyria-3.5`).
    - **Legacy Support**: Preserve fallback to `client.models.generate_content` via `--legacy-api` and automatic error fallback.
-   - **Speech Metadata**: Keep verbatim transcripts clean. Move sustained style/cadence cues into `types.SpeechMetadata(speaker=voice_name, style=style)` on `types.Part.speech_metadata`. Use inline angle brackets (`<short pause>`, `<cheer>`) strictly for point-in-time vocal events.
+   - **Speech Style & Nuance vs. Inline Vocal Tags**: Keep verbatim transcripts clean. Move sustained style, emotion, volume, and pace directions into `types.SpeechMetadata(speaker=voice_name, style=style)` on `types.Part.speech_metadata` using clean unbracketed descriptive strings (e.g. `"excitedly, fast-paced"`, `"shouting, hype"`). Never use legacy square brackets. Reserve inline angle brackets (`<short pause>`, `<cheer>`) strictly for point-in-time vocal events.
    - **Pure Instrumental Music**: Ensure music generation prompts include negative framing (`strictly NO vocals, NO singing, NO lyrics`) and specify `response_modalities=["audio"]`.
 
 3. **Security & Sensitive Data Protection**:

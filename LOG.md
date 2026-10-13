@@ -7,10 +7,19 @@
 
 ---
 
+## [2026-10-12] Gemini 3.8 Flash TTS Speech Style & Nuance Modernization
+- **Official Terminology Realignment**: Modernized the legacy term "audio tags" to match official Google Gemini 3.8 Flash TTS documentation: sustained turn-level delivery style & nuance (`speech_metadata.style`) vs point-in-time inline tags (`<short pause>`, `<cheer>`, `<breath>`).
+- **Bracket Deprecation & Prosody Optimization**: Replaced legacy square-bracket notation (`[excitedly]`) with clean unbracketed descriptive strings (e.g. `"excitedly, fast-paced"`, `"shouting, hype"`), preventing modern verbatim speech synthesis models from inadvertently vocalizing brackets.
+- **Backwards Compatibility**: Preserved `--audio-tags` as a functional CLI alias for `--speech-style` / `--style`, and added fallback compatibility for legacy `audio_tags` JSON configuration keys in `roster_templates.json` and `setup_wizard.py`.
+- **Curated Voice Catalog Synchronization**: Updated `config/gemini_voices.json`, `update_gemini_voices.py`, and the `voice-catalog-tracker` skill to reflect `recommended_style` and clean unbracketed style strings.
+
+---
+
 ## [2026-10-12] Public Release Preparation & DRY Documentation Refactoring
 - **DRY Single-Source-of-Truth Architecture**: Refactored `README.md`, `GEMINI.md`, `PROMPT.md`, `TODO.md`, and `LOG.md` to eliminate redundant catalogs, schemas, and duplicate changelogs, designating clear consumer roles for each document.
 - **DevFest Montreal Demo Context**: Highlighted project context in `README.md` as an extensible proof-of-concept demo tailored for DevFest Montreal (1986 Montreal Canadiens Stanley Cup theme with French Canadian pronunciation, and 80s retro arena synth entrance music).
 - **Community & Presentation Sections**: Added dedicated sections to `README.md` for open-source contributions (forking, issues, PRs) and a future link placeholder for DevFest Montreal presentation slides and recording.
+- **Setup Wizard Implied Defaults**: Enhanced `setup_wizard.py` to inspect existing `roster_templates.json` and `run_of_show.json` files and surface their values as implied defaults across all interactive prompts, falling back to hardcoded defaults only if configuration files are absent.
 - **Security & Git Hardening**: Confirmed zero hardcoded API keys or private project numbers; updated `.gitignore` to ignore `.env*` and temporary duplicate files.
 
 ---

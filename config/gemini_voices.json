@@ -230,8 +230,9 @@
       "is_featured": true,
       "announcer_style": "Energetic / Expressive PA Announcer",
       "energy_rating": "high",
-      "recommended_tags": "[excitedly, fast-paced]",
-      "notes": "Default stadium PA announcer voice. Vibrant and rapid-fire."
+      "recommended_tags": "excitedly, fast-paced",
+      "notes": "Default stadium PA announcer voice. Vibrant and rapid-fire.",
+      "recommended_style": "excitedly, fast-paced"
     },
     {
       "name": "Charon",
@@ -243,8 +244,9 @@
       "is_featured": true,
       "announcer_style": "Deep / Authoritative Arena Voice",
       "energy_rating": "high",
-      "recommended_tags": "[authoritative, punchy]",
-      "notes": "Deep, resonant, commanding arena presence."
+      "recommended_tags": "authoritative, punchy",
+      "notes": "Deep, resonant, commanding arena presence.",
+      "recommended_style": "authoritative, punchy"
     },
     {
       "name": "Kore",
@@ -256,8 +258,9 @@
       "is_featured": true,
       "announcer_style": "Punchy / High Enthusiasm PA Voice",
       "energy_rating": "high",
-      "recommended_tags": "[excitedly]",
-      "notes": "Firm, sharp, high-enthusiasm arena delivery."
+      "recommended_tags": "excitedly",
+      "notes": "Firm, sharp, high-enthusiasm arena delivery.",
+      "recommended_style": "excitedly"
     },
     {
       "name": "Fenrir",
@@ -269,8 +272,9 @@
       "is_featured": true,
       "announcer_style": "Gritty / Aggressive Arena Voice",
       "energy_rating": "high",
-      "recommended_tags": "[shouting, hype]",
-      "notes": "Raspy, intense, heavy-rock stadium persona."
+      "recommended_tags": "shouting, hype",
+      "notes": "Raspy, intense, heavy-rock stadium persona.",
+      "recommended_style": "shouting, hype"
     },
     {
       "name": "Aoede",
@@ -282,8 +286,9 @@
       "is_featured": true,
       "announcer_style": "Smooth / Championship PA Announcer",
       "energy_rating": "high",
-      "recommended_tags": "[excitedly, fast]",
-      "notes": "Confident, polished championship stadium voice."
+      "recommended_tags": "excitedly, fast",
+      "notes": "Confident, polished championship stadium voice.",
+      "recommended_style": "excitedly, fast"
     },
     {
       "name": "Algenib",
@@ -295,8 +300,9 @@
       "is_featured": false,
       "announcer_style": "Gravelly / Raspy Rock Arena Voice",
       "energy_rating": "high",
-      "recommended_tags": "[shouting, gritty]",
-      "notes": "Gravelly arena texture for aggressive team intros."
+      "recommended_tags": "shouting, gritty",
+      "notes": "Gravelly arena texture for aggressive team intros.",
+      "recommended_style": "shouting, gritty"
     },
     {
       "name": "Alnilam",
@@ -308,8 +314,9 @@
       "is_featured": false,
       "announcer_style": "Firm / Powerful Stadium Voice",
       "energy_rating": "high",
-      "recommended_tags": "[firm, authoritative]",
-      "notes": "Firm, steady, powerful cadence."
+      "recommended_tags": "firm, authoritative",
+      "notes": "Firm, steady, powerful cadence.",
+      "recommended_style": "firm, authoritative"
     },
     {
       "name": "Autonoe",
@@ -321,8 +328,9 @@
       "is_featured": false,
       "announcer_style": "Bright / Vibrant Stadium Voice",
       "energy_rating": "high",
-      "recommended_tags": "[excitedly]",
-      "notes": "High clarity, punchy, upbeat stadium announcements."
+      "recommended_tags": "excitedly",
+      "notes": "High clarity, punchy, upbeat stadium announcements.",
+      "recommended_style": "excitedly"
     },
     {
       "name": "Laomedeia",
@@ -334,8 +342,9 @@
       "is_featured": false,
       "announcer_style": "Upbeat / High-Enthusiasm Arena Voice",
       "energy_rating": "high",
-      "recommended_tags": "[excitedly, fast-paced]",
-      "notes": "Energetic female PA announcer with high punch."
+      "recommended_tags": "excitedly, fast-paced",
+      "notes": "Energetic female PA announcer with high punch.",
+      "recommended_style": "excitedly, fast-paced"
     },
     {
       "name": "Leda",
@@ -347,8 +356,9 @@
       "is_featured": false,
       "announcer_style": "Youthful / High-Pace Sports Energy",
       "energy_rating": "high",
-      "recommended_tags": "[excitedly, fast-paced]",
-      "notes": "Youthful, lively, quick-tempo PA delivery."
+      "recommended_tags": "excitedly, fast-paced",
+      "notes": "Youthful, lively, quick-tempo PA delivery.",
+      "recommended_style": "excitedly, fast-paced"
     },
     {
       "name": "Orus",
@@ -360,8 +370,9 @@
       "is_featured": false,
       "announcer_style": "Commanding / Authoritative Stadium Voice",
       "energy_rating": "high",
-      "recommended_tags": "[firm, fast-paced]",
-      "notes": "Firm, punchy male delivery with strong presence."
+      "recommended_tags": "firm, fast-paced",
+      "notes": "Firm, punchy male delivery with strong presence.",
+      "recommended_style": "firm, fast-paced"
     },
     {
       "name": "Pulcherrima",
@@ -373,8 +384,9 @@
       "is_featured": false,
       "announcer_style": "Forward / Rapid-Fire PA Delivery",
       "energy_rating": "high",
-      "recommended_tags": "[rapid, fast-paced]",
-      "notes": "Forward, direct projection well-suited for fast skater calls."
+      "recommended_tags": "rapid, fast-paced",
+      "notes": "Forward, direct projection well-suited for fast skater calls.",
+      "recommended_style": "rapid, fast-paced"
     },
     {
       "name": "Sadachbia",
@@ -386,8 +398,9 @@
       "is_featured": false,
       "announcer_style": "Lively / Dynamic Arena Announcer",
       "energy_rating": "high",
-      "recommended_tags": "[excitedly, lively]",
-      "notes": "Lively and dynamic stadium excitement."
+      "recommended_tags": "excitedly, lively",
+      "notes": "Lively and dynamic stadium excitement.",
+      "recommended_style": "excitedly, lively"
     },
     {
       "name": "Zephyr",
@@ -399,8 +412,9 @@
       "is_featured": false,
       "announcer_style": "Bright / Spirited Arena Voice",
       "energy_rating": "high",
-      "recommended_tags": "[excitedly]",
-      "notes": "Bright, clear, spirited energy suitable for youth sports."
+      "recommended_tags": "excitedly",
+      "notes": "Bright, clear, spirited energy suitable for youth sports.",
+      "recommended_style": "excitedly"
     }
   ]
 }
