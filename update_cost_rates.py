@@ -372,6 +372,14 @@ def main():
     if not (args.check or args.update or args.sync_readme or args.json or args.dry_run):
         args.check = True
 
+    if not args.json:
+        from common import print_cli_banner
+        print_cli_banner(
+            utility_title="MODEL & PRICING RATE CARD TRACKER (update_cost_rates.py)",
+            what_it_is="Pricing rate card and platform availability auditor for Google Gemini and Lyria AI models.",
+            how_it_works="Queries upstream rate cards, syncs cost_rates.json, and validates model availability for AI Studio and Vertex AI."
+        )
+
     config_path = Path(args.config)
     config_data = load_config(config_path)
     tracked_models = config_data.get("tracked_models", {})

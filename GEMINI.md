@@ -556,5 +556,30 @@ The full technical production lifecycle operates through 4 distinct decoupled la
 - **`update_cost_rates.py`**: Audits and synchronizes `config/cost_rates.json` (model availability matrix and pricing rates) against official Google documentation.
 - **`update_gemini_voices.py`**: Discovers and audits upstream Gemini TTS voices against strict high-energy sports PA curation criteria, maintaining `config/gemini_voices.json`.
 
+### 3. CLI Terminal Interface & Branding Architecture (`print_cli_banner`)
+- **Visual Branding Standard**: All 6 CLI utilities display a unified, multi-colored athletic branding header upon execution.
+- **Solid Colored Block PA Bullhorn Graphic**:
+  - Rendered using solid Unicode block elements (`█`, `▄`, `▀`) similar to terminal block logos.
+  - Red mouthpiece (`\033[38;5;196m` / `\033[91m`): `███`
+  - Flared acoustic bell in high-visibility Orange (`\033[38;5;208m`) and Gold (`\033[38;5;220m` / `\033[93m`): `▄▄██████`, `▄██████████`, `▀██████████`, `▀▀██████`
+  - Dual radiating acoustic soundwaves in Cyan (`\033[38;5;51m` / `\033[96m`) and Bright White (`\033[38;5;231m` / `\033[97m`): `▄ ▄`, `██ ██`, `▀ ▀`
+  - Gold grip handle (`\033[38;5;220m` / `\033[93m`): `██`
+- **Ultra-Legible 5-Line Block Typography**:
+  - Full-height 5-line solid block lettering across 61 columns for maximum legibility.
+  - "TEAM" in Bold Gold (`\033[38;5;220m` / `\033[93m`).
+  - "HYPE" in Bold Cyan (`\033[38;5;51m` / `\033[96m`).
+  - "AI" in Bold White (`\033[38;5;231m` / `\033[97m`).
+  - Centered subtitle: `STADIUM INTRO AUDIO ENGINE • GOOGLE GEMINI & LYRIA`.
+- **78-Character Column Boundary**: Standardized to 78 characters, cleanly fitting within standard 80-column terminal emulators without edge wrap or character misalignment.
+- **Context Box Framing & Text Wrapping**:
+  - Unified framed container (`┌───┐`, `│   │`, `└───┘`) displaying tool identity, "WHAT IT IS", and "HOW IT WORKS".
+  - Implements word wrapping using `textwrap.TextWrapper(width=wrap_width)` with hanging indents for multi-line explanations, preventing truncation or border blowouts.
+- **ANSI Color Compatibility & Graceful Degradation (`supports_color`)**:
+  - Inspects `sys.stdout.isatty()` to ensure color codes are suppressed when stdout is redirected to files, pipes, or background services.
+  - Honors the universal `NO_COLOR` standard (disabling ANSI styling if `NO_COLOR` is present in the environment).
+  - Detects `TERM=dumb` and suppresses ANSI escapes.
+  - Degrades gracefully to clean plain-text borders and unstyled text when colors are disabled, avoiding escape sequence artifacts.
+- **Universal CLI Integration**: Standardized across all 6 executable entry points (`setup_wizard.py`, `generate_voice_samples.py`, `generate_gemini_audio.py`, `assemble_show.py`, `update_cost_rates.py`, `update_gemini_voices.py`).
+
 
 

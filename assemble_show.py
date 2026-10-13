@@ -4,7 +4,7 @@ import argparse
 from pydub import AudioSegment
 from pydub.effects import normalize
 
-from common import load_json_file
+from common import load_json_file, print_cli_banner
 
 # --- DEFAULTS ---
 DEFAULT_CONFIG_FILE = "run_of_show.json"
@@ -225,6 +225,12 @@ def main():
     parser.add_argument("-f", "--force", action="store_true", help="Force re-assembly even if output file already exists")
     args = parser.parse_args()
     
+    print_cli_banner(
+        utility_title="AUDIO DSP MIXING & MASTERING ENGINE (assemble_show.py)",
+        what_it_is="Broadcast assembly engine that mixes voice clips, sound effects, and music into a master stadium track.",
+        how_it_works="Applies 0.95x voice pitch thickening, dynamic background music ducking, sequence delays, and peak normalization."
+    )
+
     if not os.path.exists(args.config):
         print(f"❌ Error: Config file '{args.config}' not found.")
         return

@@ -349,6 +349,14 @@ def main():
     parser.add_argument("--all", action="store_true", help="Include full list of excluded voices in audit report")
 
     args = parser.parse_args()
+
+    from common import print_cli_banner
+    print_cli_banner(
+        utility_title="GEMINI TTS VOICE CATALOG TRACKER (update_gemini_voices.py)",
+        what_it_is="Announcer voice persona auditor curated for high-energy sports and stadium PA announcements.",
+        how_it_works="Discovers upstream Gemini TTS voices, filters by language and acoustics, and updates config/gemini_voices.json."
+    )
+
     config = load_config(VOICES_JSON_PATH)
 
     if args.update:

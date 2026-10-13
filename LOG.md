@@ -7,6 +7,15 @@
 
 ---
 
+## [2026-10-12] CLI Colored Logo & Utility Context Banners
+- **Solid Colored Block PA Bullhorn Graphic**: Designed an 8-line stadium PA bullhorn rendered using native ANSI color escapes and solid Unicode block elements (`█`, `▄`, `▀`) similar to the Antigravity terminal logo, featuring a Red mouthpiece (`███`), high-visibility Orange/Gold flared bell (`▄▄██████`), dual Cyan/White radiating soundwaves (`▄ ▄`, `██ ██`), and a Gold handle.
+- **Ultra-Legible 5-Line Block Typography**: Implemented a bold 5-line solid block font for `TeamHypeAI` (Gold "TEAM", Cyan "HYPE", Bright White "AI") across 61 columns for high legibility, with a centered subtitle (`STADIUM INTRO AUDIO ENGINE • GOOGLE GEMINI & LYRIA`).
+- **78-Character Layout & Adaptive Text Wrapping**: Constrained all art and context boxes to 78 characters to fit cleanly inside 80-column terminals without wrapping artifacts; wrapped descriptions with `textwrap.TextWrapper` for clean hanging indents across "WHAT IT IS" and "HOW IT WORKS".
+- **Color Detection & Graceful Fallback (`supports_color`)**: Added automatic suppression of ANSI escape codes when stdout is redirected (`isatty() == False`), when `NO_COLOR` is present, or when `TERM=dumb`, avoiding escape sequence noise in log files and pipes.
+- **Universal Utility Integration**: Deployed `print_cli_banner()` across all 6 CLI utilities (`setup_wizard.py`, `generate_voice_samples.py`, `generate_gemini_audio.py`, `assemble_show.py`, `update_cost_rates.py`, and `update_gemini_voices.py`).
+
+---
+
 ## [2026-10-12] Comprehensive Utility Documentation, Architecture Diagrams & Tuning Guide
 - **Visual Architecture & Pipeline Diagrams**: Embedded Mermaid flowcharts and sequence diagrams in `README.md` illustrating the end-to-end multi-layer pipeline and the audio DSP mixing sequence (ducking envelopes, thickening, pre/post delays, and `$ROSTER` macro expansion).
 - **Recommended User Workflow ("Where to Start")**: Delineated an approachable 5-step roadmap prioritizing `setup_wizard.py` as the interactive starting point, followed by voice auditioning, AI asset generation, and show assembly.

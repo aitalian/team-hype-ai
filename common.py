@@ -11,7 +11,115 @@ import sys
 import json
 import datetime
 import re
+import textwrap
 from typing import Optional, Dict, Any, List
+
+
+def supports_color() -> bool:
+    """Checks whether the current terminal supports ANSI color escape codes."""
+    if os.environ.get("NO_COLOR") or os.environ.get("TERM") == "dumb":
+        return False
+    return hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+
+def print_cli_banner(utility_title: str, what_it_is: str, how_it_works: str, width: int = 78):
+    """
+    Renders a solid colored block sports bullhorn logo, highly legible block
+    TeamHypeAI typography, and a standardized context box explaining the utility.
+    """
+    use_color = supports_color()
+
+    if use_color:
+        reset = "\033[0m"
+        bold = "\033[1m"
+        dim = "\033[2m"
+        red = "\033[38;5;196m"
+        orange = "\033[38;5;208m"
+        gold = "\033[38;5;220m"
+        yellow = "\033[38;5;226m"
+        cyan = "\033[38;5;51m"
+        white = "\033[38;5;231m"
+        gray = "\033[38;5;245m"
+        border = "\033[38;5;69m"
+    else:
+        reset = bold = dim = ""
+        red = orange = gold = yellow = cyan = white = gray = border = ""
+
+    # Solid colored block bullhorn / stadium horn (centered)
+    h_pad = " " * 24
+    horn_lines = [
+        f"{h_pad}       {orange}▄▄████{gold}██{reset}",
+        f"{h_pad}    {orange}▄████████{gold}██{reset}   {cyan}▄   {white}▄{reset}",
+        f"{h_pad} {red}███{orange}████████{gold}██{reset}  {cyan}██  {white}██{reset}",
+        f"{h_pad} {red}███{orange}████████{gold}██{reset}  {cyan}██  {white}██{reset}",
+        f"{h_pad}    {orange}▀████████{gold}██{reset}   {cyan}▀   {white}▀{reset}",
+        f"{h_pad}       {orange}▀▀████{gold}██{reset}",
+        f"{h_pad}     {gold}██{reset}",
+        f"{h_pad}     {gold}██{reset}",
+    ]
+
+    # Clean, bold, highly legible 5-line block typography
+    T = ["█████", "  █  ", "  █  ", "  █  ", "  █  "]
+    E = ["█████", "█    ", "████ ", "█    ", "█████"]
+    A = ["▄███▄", "█   █", "█████", "█   █", "█   █"]
+    M = ["█   █", "██ ██", "█ █ █", "█   █", "█   █"]
+
+    H = ["█   █", "█   █", "█████", "█   █", "█   █"]
+    Y = ["█   █", " █ █ ", "  █  ", "  █  ", "  █  "]
+    P = ["████▄", "█   █", "████▀", "█    ", "█    "]
+    I = ["█████", "  █  ", "  █  ", "  █  ", "█████"]
+
+    t_pad = " " * 8
+    text_lines = []
+    for r in range(5):
+        team_part = f"{bold}{gold}{T[r]} {E[r]} {A[r]} {M[r]}{reset}"
+        hype_part = f"{bold}{cyan}{H[r]} {Y[r]} {P[r]} {E[r]}{reset}"
+        ai_part   = f"{bold}{white}{A[r]} {I[r]}{reset}"
+        text_lines.append(f"{t_pad}{team_part}  {hype_part}  {ai_part}")
+
+    s_pad = " " * 13
+    subtitle = f"{s_pad}{gray}STADIUM INTRO AUDIO ENGINE {cyan}•{gray} GOOGLE GEMINI & LYRIA{reset}"
+
+    logo_lines = [
+        *horn_lines,
+        "",
+        *text_lines,
+        "",
+        subtitle
+    ]
+
+    inner_width = width - 4
+    b_top = f"{border}┏{'━' * (width - 2)}┓{reset}"
+    b_bottom = f"{border}┗{'━' * (width - 2)}┛{reset}"
+    b_div = f"{border}┣{'━' * (width - 2)}┫{reset}"
+
+    def format_field(label: str, text: str):
+        wrap_width = inner_width - len(label) - 2
+        wrapper = textwrap.TextWrapper(width=wrap_width)
+        wrapped = wrapper.wrap(text) if text else [""]
+        field_lines = []
+        for i, w_line in enumerate(wrapped):
+            if i == 0:
+                prefix = f"{white}{bold}{label}:{reset} "
+                padded = w_line.ljust(wrap_width)
+                field_lines.append(f"{border}┃{reset} {prefix}{gray}{padded}{reset} {border}┃{reset}")
+            else:
+                indent = " " * (len(label) + 2)
+                padded = w_line.ljust(wrap_width)
+                field_lines.append(f"{border}┃{reset} {indent}{gray}{padded}{reset} {border}┃{reset}")
+        return field_lines
+
+    box_lines = [
+        b_top,
+        f"{border}┃{reset} {cyan}{bold}{utility_title.center(inner_width)}{reset} {border}┃{reset}",
+        b_div,
+        *format_field("WHAT IT IS", what_it_is),
+        *format_field("HOW IT WORKS", how_it_works),
+        b_bottom
+    ]
+
+    print("\n" + "\n".join(logo_lines))
+    print("\n".join(box_lines) + "\n")
 
 
 def log_api_event(category, action, details="", log_path="logs/api_execution.log"):
@@ -41,6 +149,7 @@ def log_api_event(category, action, details="", log_path="logs/api_execution.log
             f.write(log_entry)
     except Exception:
         pass
+
 
 # Default Models & Voice Persona
 DEFAULT_TTS_MODEL = "gemini-3.8-flash-tts"

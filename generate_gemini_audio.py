@@ -103,6 +103,7 @@ from common import (
     get_model_cost_rates,
     log_api_event,
     print_pricing_disclaimer,
+    print_cli_banner,
     init_gemini_client,
     check_model_status,
     warn_if_inactive_models,
@@ -1180,7 +1181,11 @@ def main():
     regional_accent = args.regional_accent or config.get("regional_accent") or persona.get("regional_accent") or ""
     accent_guidance = config.get("accent_guidance") or persona.get("accent_guidance") or ""
 
-    print("🚀 TeamHypeAI - Sports Audio Generator")
+    print_cli_banner(
+        utility_title="AI VOICE & ENTRANCE MUSIC GENERATOR (generate_gemini_audio.py)",
+        what_it_is="Primary pipeline generator for stadium PA voice announcements and background entrance music tracks.",
+        how_it_works="Synthesizes scripts with Gemini 3.8 Flash, generates voice clips via Gemini TTS, and composes music via Lyria 3.5."
+    )
     print(f"   Platform Backend:   {platform_desc}")
     print(f"   API Engine:         {api_engine_desc}")
     print(f"   TTS Model:          {tts_model}")

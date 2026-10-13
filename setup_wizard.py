@@ -21,6 +21,7 @@ from common import (
     load_dotenv_if_present,
     load_gemini_voices,
     warn_if_inactive_models,
+    print_cli_banner,
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_MUSIC_MODEL,
@@ -87,11 +88,11 @@ def load_existing_configs():
 
 
 def main():
-    print("=" * 65)
-    print("🚀 TeamHypeAI - Interactive Setup Wizard")
-    print("=" * 65)
-    print("Welcome! This wizard will help you configure your sports team intro audio")
-    print("pipeline in just a few quick steps.\n")
+    print_cli_banner(
+        utility_title="INTERACTIVE SETUP WIZARD (setup_wizard.py)",
+        what_it_is="Guided interactive onboarding for configuring team rosters, announcer personas & audio parameters.",
+        how_it_works="Inspects existing configs for implied defaults, prompts for missing values, and writes ready-to-use JSON files."
+    )
 
     # Inspect existing configurations for implied defaults
     existing_roster, existing_show, roster_path, show_path = load_existing_configs()

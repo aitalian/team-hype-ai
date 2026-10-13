@@ -24,6 +24,7 @@ from common import (
     init_gemini_client,
     check_model_status,
     warn_if_inactive_models,
+    print_cli_banner,
     DEFAULT_TTS_MODEL,
     DEFAULT_LLM_MODEL,
     DEFAULT_ENHANCE_MODE,
@@ -152,7 +153,11 @@ def main():
         if args.force or not (os.path.exists(out_file) and os.path.getsize(out_file) > 0):
             to_generate.append(voice)
 
-    print("🚀 TeamHypeAI - Announcer Voice Preview Generator")
+    print_cli_banner(
+        utility_title="ANNOUNCER VOICE AUDITION GENERATOR (generate_voice_samples.py)",
+        what_it_is="Audition tool to synthesize short voice samples for prebuilt Google Gemini announcer personas.",
+        how_it_works="Sends test dialogue to Gemini 3.8 Flash TTS with structured speech styles and exports preview clips to samples/."
+    )
     print(f"   Platform Backend: {platform_desc}")
     print(f"   API Engine:       {api_engine_desc}")
     print(f"   Output Directory: {args.output_dir}")
