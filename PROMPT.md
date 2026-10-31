@@ -29,6 +29,7 @@
    - **Legacy Support**: Preserve fallback to `client.models.generate_content` via `--legacy-api` and automatic error fallback.
    - **Speech Style & Nuance vs. Inline Vocal Tags**: Keep verbatim transcripts clean. Move sustained style, emotion, volume, and pace directions into `types.SpeechMetadata(speaker=voice_name, style=style)` on `types.Part.speech_metadata` using clean unbracketed descriptive strings (e.g. `"excitedly, fast-paced"`, `"shouting, hype"`). Never use legacy square brackets. Reserve inline angle brackets (`<short pause>`, `<cheer>`) strictly for point-in-time vocal events.
    - **Pure Instrumental Music**: Ensure music generation prompts include negative framing (`strictly NO vocals, NO singing, NO lyrics`) and specify `response_modalities=["audio"]`.
+   - **Stadium DSP Mixing (`assemble_show.py`)**: Maintain multi-tap stadium PA reverb/echo (`REVERB_PRESETS`: `none`, `subtle`, `arena`, `stadium`, `coliseum`), sub-220Hz low-end bass resonance, 0.95x pitch thickening, and dynamic background music ducking.
 
 3. **Security & Sensitive Data Protection**:
    - Never hardcode API keys, personal credentials, private GCP project IDs, or internal URLs.

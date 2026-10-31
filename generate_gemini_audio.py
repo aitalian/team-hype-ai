@@ -151,8 +151,8 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
     effective_style = speech_style or audio_tag or ""
     delivery_str = f"Delivery & Cadence Instructions: {delivery_instructions}\n" if delivery_instructions else ""
     tone_str = f"Desired Speech Style & Nuance: {effective_style}\n" if effective_style else ""
-    accent_info = accent_guidance or (f"Authentic {regional_accent} regional pronunciation for regional/French names and places" if regional_accent else "")
-    accent_str = f"Regional Accent & Pronunciation Instructions: {accent_info}\nWhen Francophone names, places, or hockey terms (e.g. Montréal, Canadiens, Patrick Roy, Forum) appear, ensure they are phoneticized or phrased with authentic French Canadian / Quebec regional pronunciation while maintaining stadium rock announcer cadence.\n\n" if accent_info else ""
+    accent_info = accent_guidance or (f"Authentic {regional_accent} regional pronunciation for {regional_accent} names and places" if regional_accent else "")
+    accent_str = f"Regional Accent & Pronunciation Instructions: {accent_info}\n" if accent_info else ""
     theme_str = f"Theme & Context Instructions: {theme_context}\nIncorporate thematic phrasing, tone accents, vocabulary, or puns matching this theme while keeping speech punchy and stadium-ready.\n\n" if theme_context else ""
 
     prompt = (
@@ -163,7 +163,7 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
         f"{accent_str}"
         f"{theme_str}"
         f"Rewrite the following announcement text into a concise, rapid-fire, high-energy stadium PA script "
-        f"for Google Gemini 3.8 Flash TTS speech synthesis. Keep delivery fast-paced, quick, and punchy. Use UPPERCASE for strong stadium emphasis, "
+        f"for Google Gemini TTS speech synthesis. Keep delivery fast-paced, quick, and punchy. Use UPPERCASE for strong stadium emphasis, "
         f"drawn-out vowels ONLY for key player names, and clear punctuation (commas, exclamation points) to guide rapid pitch, volume, and inflection.\n\n"
         f"CRITICAL REQUIREMENTS FOR GEMINI 3.8 TTS VERBATIM MODEL:\n"
         f"1. Infuse the delivery instructions, tone cues, regional accent guidance, and theme directly into the rhythm, casing, and phrasing of the spoken dialogue.\n"
@@ -239,8 +239,8 @@ def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona
     prompt_json_str = json.dumps(prompt_payload, indent=2)
 
     delivery_str = f"Delivery & Cadence Instructions: {delivery_instructions}\n" if delivery_instructions else ""
-    accent_info = accent_guidance or (f"Authentic {regional_accent} regional pronunciation for regional/French names and places" if regional_accent else "")
-    accent_str = f"Regional Accent & Pronunciation Instructions: {accent_info}\nWhen Francophone names, places, or hockey terms (e.g. Montréal, Canadiens, Patrick Roy, Forum) appear, ensure they are phoneticized or phrased with authentic French Canadian / Quebec regional pronunciation while maintaining stadium rock announcer cadence.\n\n" if accent_info else ""
+    accent_info = accent_guidance or (f"Authentic {regional_accent} regional pronunciation for regional {regional_accent} names and places" if regional_accent else "")
+    accent_str = f"Regional Accent & Pronunciation Instructions: {accent_info}\n" if accent_info else ""
     theme_str = f"Theme & Context Instructions: {theme_context}\nIncorporate thematic phrasing, tone accents, vocabulary, or puns matching this theme while keeping speech punchy and stadium-ready.\n\n" if theme_context else ""
 
     prompt = (
@@ -249,7 +249,7 @@ def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona
         f"{accent_str}"
         f"{theme_str}"
         f"Rewrite each announcement text in the input JSON into a concise, rapid-fire, high-energy stadium PA script "
-        f"for Google Gemini 3.8 Flash TTS speech synthesis.\n"
+        f"for Google Gemini TTS speech synthesis.\n"
         f"Keep delivery fast-paced, quick, and punchy. Use UPPERCASE for strong stadium emphasis, "
         f"drawn-out vowels ONLY for key player names, and clear punctuation (commas, exclamation points) to guide rapid pitch, volume, and inflection.\n"
         f"Observe the style cues, regional accent guidance, and delivery instructions to shape the vocal energy, enthusiasm, and stadium excitement directly through phrasing and typography.\n\n"

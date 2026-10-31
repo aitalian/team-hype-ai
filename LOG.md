@@ -7,6 +7,14 @@
 
 ---
 
+## [2026-10-27] Stadium PA Echo, Multi-Tap Reverb & Bass Boom DSP Engine & Architecture Blueprint
+- **Multi-Tap Acoustic Reverb & Bass Resonance (`apply_stadium_reverb` in `assemble_show.py`)**: Implemented a pure-Python/Pydub stadium DSP chain combining sub-220Hz low-end bass warmth ("PA chest boom"), multi-tap early slapback and late arena bowl reflections (`45ms`–`950ms`) with progressive low-pass air absorption (`4800Hz` down to `1000Hz`) and `120Hz` high-pass mud filtering, plus automatic clip tail extension (`tail_ms`) so echoes ring out smoothly over ducked background music.
+- **Built-in Venue Acoustic Presets (`REVERB_PRESETS`)**: Added 5 presets (`none`, `subtle`, `arena`, `stadium`, `coliseum`) alongside support for custom per-event dictionary parameters (`wet_gain_offset_db`, `bass_boost_db`, `tail_ms`, `taps`).
+- **Run of Show & Roster Configuration (`run_of_show.json` & `setup_wizard.py`)**: Configured `reverb_preset: "stadium"` in settings, enabled `"stadium"` reverb across voice announcements, `"coliseum"` reverb on the climax `"GO <TEAM> GO.wav"` chant, `reverb: false` on pre-recorded SFX tracks, and added `$ROSTER` per-player `reverb`/`echo` override inheritance.
+- **CLI Controls**: Added `--reverb {none,subtle,arena,stadium,coliseum}` and `--no-reverb` flags to `assemble_show.py`.
+
+---
+
 ## [2026-10-12] CLI Colored Logo & Utility Context Banners
 - **Solid Colored Block PA Bullhorn Graphic**: Designed an 8-line stadium PA bullhorn rendered using native ANSI color escapes and solid Unicode block elements (`█`, `▄`, `▀`) similar to the Antigravity terminal logo, featuring a Red mouthpiece (`███`), high-visibility Orange/Gold flared bell (`▄▄██████`), dual Cyan/White radiating soundwaves (`▄ ▄`, `██ ██`), and a Gold handle.
 - **Ultra-Legible 5-Line Block Typography**: Implemented a bold 5-line solid block font for `TeamHypeAI` (Gold "TEAM", Cyan "HYPE", Bright White "AI") across 61 columns for high legibility, with a centered subtitle (`STADIUM INTRO AUDIO ENGINE • GOOGLE GEMINI & LYRIA`).

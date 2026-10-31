@@ -277,8 +277,24 @@ Defines event timeline sequence. Incorporates the `$ROSTER` macro which dynamica
 
 ### 3. Audio Mixing (`assemble_show.py`)
 - **Voice Pitch Thickening**: Pitch-shifts voice audio by spawning frame rate at 0.95x and resampling to 44.1kHz for stadium resonance.
-- **Dynamic Ducking**: Lowers music volume (default `-8dB` to `-15dB`) during voice clip playback.
-- **Normalization**: Applies clip-level normalization and final mix peak normalization (`headroom=0.1`).
+- **Stadium PA Echo, Multi-Tap Reverb & Bass Boom (`apply_stadium_reverb`)**:
+  - **DSP Architecture**: Pure-Python + Pydub multi-tap acoustic reflection engine requiring zero external native plugins beyond standard Pydub/FFmpeg:
+    1. **Low-End Bass Resonance ("Boom")**: Isolates sub-220Hz warm body via `low_pass_filter(220)` and overlays it (`bass_boost_db - 6.0` dB) underneath the dry announcement to create chest-thumping arena speaker authority.
+    2. **Progressive Multi-Tap Acoustic Reflections**: Generates early arena slapback reflections (`45ms`–`120ms`) and late stadium bowl decay taps (`165ms`–`950ms`). Each reflection tap is progressively low-pass filtered (`4800Hz` down to `1000Hz`) to model high-frequency air absorption across a massive stadium bowl, and high-pass filtered at `120Hz` to keep echo tails crisp and prevent low-end muddiness.
+    3. **Acoustic Tail Preservation**: Extends the voice clip canvas (`tail_ms` up to `900ms`) with a smooth fade-out so booming stadium echoes ring out naturally over the ducked background music without abrupt truncation.
+  - **Built-in Acoustic Presets (`REVERB_PRESETS`)**:
+    - `"none"`: Dry signal (0 taps, 0dB bass boost, 0ms tail).
+    - `"subtle"`: Tight indoor gym / studio PA slapback (3 taps: `65ms`, `135ms`, `220ms`; `+1.5dB` bass boost; `250ms` tail).
+    - `"arena"`: Classic indoor hockey arena / basketball bowl reverb (5 taps: `55ms` to `390ms`; `+2.5dB` bass boost; `420ms` tail).
+    - `"stadium"` *(Default)*: Loud, booming championship sports stadium PA echo & reverb (7 taps: `45ms` to `600ms`; `+3.5dB` bass boost; `600ms` tail).
+    - `"coliseum"`: Massive open-air coliseum / canyon echo with dramatic long tail (8 taps: `55ms` to `950ms`; `+4.5dB` bass boost; `900ms` tail).
+  - **Configuration & Override Hierarchy (`resolve_reverb_config`)**:
+    - Global settings in `run_of_show.json`: `settings.reverb_preset` (default `"stadium"`), `settings.apply_reverb_by_default`, `settings.reverb_wet_gain_offset_db`, and `settings.reverb_bass_boost_db`.
+    - Per-event settings in `run_of_show.json` `sequence`: `reverb` (or alias `echo`) accepts boolean (`true`/`false`), preset name (`"subtle"`, `"arena"`, `"stadium"`, `"coliseum"`, `"none"`), or a custom dictionary (`{"enabled": true, "preset": "stadium", "wet_gain_offset_db": 1.5, "bass_boost_db": 4.0, "tail_ms": 700, "taps": [...]}`).
+    - Per-player overrides in `roster_templates.json` `roster`: Players expanded via `$ROSTER` inherit the `$ROSTER` event's `reverb` setting and can override `reverb` / `echo` individually.
+    - CLI flags in `assemble_show.py`: `--reverb {none,subtle,arena,stadium,coliseum}` and `--no-reverb`.
+- **Dynamic Ducking**: Lowers music volume (default `-8dB` to `-15dB`) during voice clip playback (including the extended stadium reverb tail).
+- **Normalization**: Applies dry clip normalization, post-reverb clip normalization, and final mix peak normalization (`headroom=0.1`).
 - **Looping & Padding**: Loops background music track seamlessly to match sequence timeline length.
 
 ---
@@ -549,7 +565,8 @@ The full technical production lifecycle operates through 4 distinct decoupled la
    - Sequences audio events defined in `run_of_show.json`.
    - Expands the `$ROSTER` macro across all player entries.
    - Applies pitch thickening (0.95x speed-shift resampled back to 44.1kHz).
-   - Dynamically ducks background music (attenuating -9dB to -15dB during speech clips).
+   - Applies multi-tap stadium PA echo/reverb (`subtle`, `arena`, `stadium`, `coliseum`) and sub-220Hz bass boom resonance.
+   - Dynamically ducks background music (attenuating -9dB to -15dB during speech clips and reverb tails).
    - Applies volume gain normalization and exports the final arena master MP3 into `output/`.
 
 ### 2. Upstream Tracking Utilities

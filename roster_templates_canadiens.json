@@ -21,7 +21,7 @@
     "speech_style": "excitedly, fast-paced arena rock announcer with a Quebec French Canadian accent on French names and places",
     "prompt_prefix": "Say rapidly with intense, fast-paced 1980s stadium PA announcer energy, retro arena swagger, quick delivery, authentic French Canadian inflection on Francophone names, and high enthusiasm: ",
     "regional_accent": "French Canadian",
-    "accent_guidance": "Authentic Quebec French Canadian pronunciation on Francophone names and places (e.g., Montr\u00e9al, Canadiens, Patrick Roy, Forum)"
+    "accent_guidance": "Authentic Quebec French Canadian pronunciation on Francophone names and places (e.g., Montr\u00e9al, Canadiens, Patrick Roy, Forum). When Francophone terms appear, ensure they are phoneticized or phrased with authentic French Canadian / Quebec regional pronunciation while maintaining stadium rock announcer cadence."
   },
   "player_template": "Number {number}, <short pause> {name}!",
   "roster": [

@@ -68,6 +68,7 @@ flowchart TD
         Assembler["assemble_show.py\n(Timeline Assembly Engine)"]
         PydubEngine["Pydub + FFmpeg DSP Core"]
         Thicken["Pitch Thickening\n(0.95x Speed-Shift Resample)"]
+        Reverb["Stadium Echo & Reverb\n(Multi-Tap Reflections & Bass Boom)"]
         Ducking["Dynamic Music Ducking\n(-9dB to -15dB during speech)"]
         Sequence["Timeline Sequencing\n(Pre/Post Delays & $ROSTER)"]
 
@@ -76,6 +77,7 @@ flowchart TD
         ShowJSON --> Assembler
         Assembler --> PydubEngine
         PydubEngine --> Thicken
+        PydubEngine --> Reverb
         PydubEngine --> Ducking
         PydubEngine --> Sequence
     end
@@ -145,6 +147,7 @@ sequenceDiagram
 - **Free Tier Quota Optimization**: High-efficiency request batching (batched LLM script enhancement and silence-sliced batched TTS) reduces API requests from ~44 down to **2–3 requests per team run**.
 - **Dynamic Rate Limit Parsing**: Automatically parses recommended wait times (e.g. `'retryDelay': '6429s'`) from 429 `RESOURCE_EXHAUSTED` responses to sleep for the exact duration needed.
 - **Audio Engineering & DSP**:
+  - Stadium PA echo, multi-tap acoustic reverb (`subtle`, `arena`, `stadium`, `coliseum`), and low-end bass boom (<220Hz chest resonance).
   - Voice pitch thickening (0.95x speed-shifted and resampled for stadium resonance).
   - Dynamic background music ducking (drops `-8dB` to `-15dB` during announcements).
   - Peak and clip volume normalization.
@@ -267,18 +270,20 @@ TeamHypeAI provides 6 dedicated CLI utilities designed for distinct stages of th
 ---
 
 ### 4. `assemble_show.py` - Audio DSP Mixer & Show Stitching Engine
-- **What it is & Why**: An audio engineering engine powered by Pydub and FFmpeg. It reads `run_of_show.json`, sequences audio events, applies pitch thickening, dynamically ducks background music during speech announcements, normalizes audio levels, and exports the master MP3.
+- **What it is & Why**: An audio engineering engine powered by Pydub and FFmpeg. It reads `run_of_show.json`, sequences audio events, applies pitch thickening, layers multi-tap stadium PA echo/reverb and bass boom, dynamically ducks background music during speech announcements, normalizes audio levels, and exports the master MP3.
 - **Key CLI Flags**:
   - `-c`, `--config`: Path to Run of Show JSON config (default: `run_of_show.json`).
   - `-r`, `--roster-config`: Overrides roster template file used for `$ROSTER` macro expansion.
+  - `--reverb {none,subtle,arena,stadium,coliseum}`: Overrides stadium echo/reverb preset across voice announcements.
+  - `--no-reverb`: Disables all stadium echo/reverb effects for a dry mix.
   - `-f`, `--force`: Forces re-assembly even if target output mix file already exists.
 - **Examples**:
   ```bash
-  # Assemble default run of show:
+  # Assemble default run of show (with configured stadium reverb):
   python assemble_show.py -c run_of_show.json
 
-  # Force re-assembly with a custom roster override:
-  python assemble_show.py -c run_of_show.json -r roster_templates.json -f
+  # Force re-assembly with massive coliseum reverb override:
+  python assemble_show.py -c run_of_show.json --reverb coliseum -f
   ```
 
 ---
@@ -393,6 +398,7 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
     "music_volume_db": -6,
     "default_ducking_vol_db": -9,
     "default_voice_boost_db": 0,
+    "reverb_preset": "stadium",
     "pre_sequence_music_ms": 1500,
     "initial_silence_ms": 0,
     "normalize_output": true,
@@ -407,28 +413,32 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
       "ducking": false,
       "pre_delay_ms": 500,
       "post_delay_ms": 400,
-      "thicken": false
+      "thicken": false,
+      "reverb": "stadium"
     },
     {
       "file": "Make Some Noise.wav",
       "ducking": false,
       "pre_delay_ms": 200,
       "post_delay_ms": 300,
-      "thicken": true
+      "thicken": true,
+      "reverb": "stadium"
     },
     {
       "file": "$ROSTER",
       "ducking": true,
       "pre_delay_ms": 200,
       "post_delay_ms": 1200,
-      "thicken": false
+      "thicken": false,
+      "reverb": "stadium"
     },
     {
       "file": "GO HABS GO.wav",
       "ducking": false,
       "pre_delay_ms": 400,
       "post_delay_ms": 3000,
-      "thicken": true
+      "thicken": true,
+      "reverb": "coliseum"
     }
   ]
 }
@@ -440,10 +450,14 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
    - For high-energy shouting clips over driving rock music, setting ducking to `false` lets the music pump at full energy behind the voice.
 2. **The `$ROSTER` Macro**:
    - Placing `{"file": "$ROSTER"}` in `sequence` automatically expands into individual announcement events for every player defined in your roster file, in exact roster order.
-   - The `pre_delay_ms` and `post_delay_ms` defined on `$ROSTER` govern the pause between each player announcement.
-3. **Voice Pitch Thickening (`thicken: true`)**:
+   - The `pre_delay_ms`, `post_delay_ms`, `thicken`, and `reverb` defined on `$ROSTER` govern each player announcement (and can be overridden per player in `roster_templates.json`).
+3. **Stadium Echo, Reverb & Bass Boom (`reverb` & `settings.reverb_preset`)**:
+   - Adds multi-tap acoustic reflections (early slapback + late stadium bowl decay with progressive high-frequency air damping) and sub-220Hz low-end bass warmth so announcements sound loud and booming.
+   - Built-in presets: `"subtle"` (indoor gym), `"arena"` (hockey/basketball arena), `"stadium"` (championship stadium PA), `"coliseum"` (massive open-air canyon tail), or `false` / `"none"` (dry, ideal for pre-recorded SFX/crowd cheers).
+   - You can also pass a custom dictionary on any event: `{"preset": "stadium", "wet_gain_offset_db": 1.5, "bass_boost_db": 4.0, "tail_ms": 700}`.
+4. **Voice Pitch Thickening (`thicken: true`)**:
    - Applies a 0.95x speed-shift resampled back to 44.1kHz. This drops the vocal pitch slightly while preserving duration, giving youth PA announcements the booming, resonant authority of an NHL arena announcer.
-4. **Pacing & Timing (`pre_delay_ms` & `post_delay_ms`)**:
+5. **Pacing & Timing (`pre_delay_ms` & `post_delay_ms`)**:
    - `pre_delay_ms`: Extra milliseconds of music before the voice announcement starts (creates dramatic anticipation).
    - `post_delay_ms`: Milliseconds of music swell after the announcement ends before the next clip starts (allows the crowd to cheer or music beat to drop).
 

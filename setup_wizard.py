@@ -388,10 +388,10 @@ def main():
         sequence = existing_show["sequence"]
     else:
         sequence = [
-            {"file": "It's Time.wav", "ducking": False, "pre_delay_ms": 1500, "post_delay_ms": 500},
-            {"file": f"For Your {team_mascot}.wav", "ducking": False, "pre_delay_ms": 0, "post_delay_ms": 500},
-            {"file": "$ROSTER", "ducking": True, "pre_delay_ms": 0, "post_delay_ms": 1400, "thicken": False},
-            {"file": f"LETS GO {team_mascot}.wav", "ducking": False, "pre_delay_ms": 0, "post_delay_ms": 500, "thicken": True}
+            {"file": "It's Time.wav", "ducking": False, "pre_delay_ms": 1500, "post_delay_ms": 500, "reverb": "stadium"},
+            {"file": f"For Your {team_mascot}.wav", "ducking": False, "pre_delay_ms": 0, "post_delay_ms": 500, "reverb": "stadium"},
+            {"file": "$ROSTER", "ducking": True, "pre_delay_ms": 0, "post_delay_ms": 1400, "thicken": False, "reverb": "stadium"},
+            {"file": f"LETS GO {team_mascot}.wav", "ducking": False, "pre_delay_ms": 0, "post_delay_ms": 500, "thicken": True, "reverb": "coliseum"}
         ]
 
     run_of_show_config = {
@@ -406,7 +406,8 @@ def main():
             "normalize_output": show_settings.get("normalize_output", True),
             "default_ducking_vol_db": show_settings.get("default_ducking_vol_db", -8),
             "normalize_voice_clips": show_settings.get("normalize_voice_clips", True),
-            "default_voice_boost_db": show_settings.get("default_voice_boost_db", 5)
+            "default_voice_boost_db": show_settings.get("default_voice_boost_db", 5),
+            "reverb_preset": show_settings.get("reverb_preset", "stadium")
         },
         "sequence": sequence
     }
