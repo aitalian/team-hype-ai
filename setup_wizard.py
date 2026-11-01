@@ -381,7 +381,7 @@ def main():
     show_settings = existing_show.get("settings", {})
     def_output_file = (
         show_settings.get("output_filename")
-        or f"{team_name.lower().replace(' ', '_')}_intro_assembled.mp3"
+        or f"{team_name.lower().replace(' ', '_')}_intro_assembled_{mascot_slug}.mp3"
     )
 
     if existing_show.get("sequence") and intro_clips == existing_clips:
