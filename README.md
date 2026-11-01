@@ -2,7 +2,7 @@
 
 An automated Python pipeline and proof-of-concept suite designed to create stadium-quality audio introductions and announcements for youth sports teams, powered **exclusively by Google Gemini and Lyria AI models**.
 
-TeamHypeAI synthesizes high-energy arena PA voice clips, polishes announcer scripts, generates royalty-free stadium entrance music, and mixes them over ducked background tracks with voice pitch-shifting ("thickening") and precise timing.
+TeamHypeAI synthesizes high-energy arena PA voice clips, polishes announcer scripts, generates royalty-free stadium entrance music, and mixes them with custom sound effects over ducked background tracks using stadium PA reverb, voice pitch-shifting ("thickening"), smooth fade envelopes, and precise timing.
 
 ---
 
@@ -49,13 +49,14 @@ flowchart TD
         Wizard --> ShowJSON
     end
 
-    subgraph AI_Gen["2. Google Gemini & Lyria AI Generation"]
+    subgraph AI_Gen["2. Google Gemini & Lyria AI Generation + Custom Assets"]
         Audition["generate_voice_samples.py\n(Voice Persona Audition)"]
         AudioGen["generate_gemini_audio.py\n(Main AI Audio Generator)"]
         InteractionsAPI["Google Interactions API\n(client.interactions.create)"]
         FlashLLM["gemini-3.8-flash\n(Announcer Script Synthesizer)"]
         FlashTTS["gemini-3.8-flash-tts\n(PA Voice Clips into input/)"]
         LyriaMusic["lyria-3.5\n(Stadium Music into music/)"]
+        CustomSFX["Custom SFX & Crowd Clips\n(input/sfx_*.wav)"]
 
         RosterJSON --> AudioGen
         AudioGen --> InteractionsAPI
@@ -67,15 +68,18 @@ flowchart TD
     subgraph DSP_Assembly["3. Audio DSP & Mixing Engine"]
         Assembler["assemble_show.py\n(Timeline Assembly Engine)"]
         PydubEngine["Pydub + FFmpeg DSP Core"]
+        TrimFade["Clip Trim & Fade Envelopes\n(clip_duration_ms, fade_in_ms, fade_out_ms)"]
         Thicken["Pitch Thickening\n(0.95x Speed-Shift Resample)"]
         Reverb["Stadium Echo & Reverb\n(Multi-Tap Reflections & Bass Boom)"]
         Ducking["Dynamic Music Ducking\n(-9dB to -15dB during speech)"]
-        Sequence["Timeline Sequencing\n(Pre/Post Delays & $ROSTER)"]
+        Sequence["Timeline Sequencing & Normalization\n(Pre/Post Delays, $ROSTER & Peak Normalize)"]
 
         FlashTTS --> Assembler
+        CustomSFX --> Assembler
         LyriaMusic --> Assembler
         ShowJSON --> Assembler
         Assembler --> PydubEngine
+        PydubEngine --> TrimFade
         PydubEngine --> Thicken
         PydubEngine --> Reverb
         PydubEngine --> Ducking
@@ -96,42 +100,45 @@ flowchart TD
 ```
 
 ### Audio DSP Mixing Sequence Diagram
-The sequence below illustrates how background music ducking, pre/post delays, voice thickening, and `$ROSTER` macro expansion are dynamically orchestrated across the playback timeline:
+The sequence below illustrates how SFX fade-outs, background music ducking, pre/post delays, voice pitch thickening, stadium PA reverb, and `$ROSTER` macro expansion are dynamically orchestrated across the playback timeline:
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Music as 🎵 Stadium Entrance Music
     participant DSP as 🎛️ DSP & Ducking Engine
+    participant SFX as 📯 SFX & Crowd Clips
     participant Voice as 🎙️ Announcer Voice Clips
     participant Master as 🔊 Master Arena Output
 
     Note over Music,Master: Show Starts: Music Swell (pre_sequence_music_ms = 1500ms)
     Music->>Master: Music playing at baseline (-6dB)
-    
-    Note over Voice,Master: Event 1: Intro Clip ("Welcome to DevFest Montréal!")
-    DSP->>Music: Duck background music down to -9dB
-    Voice->>Master: Play Intro Clip with clean voice (+5dB boost)
-    DSP->>Music: Release ducking -> Music swells back to -6dB
-    
-    Note over Voice,Master: Event 2: Hype Call ("Make Some Noise!")
-    DSP->>Music: Duck music to -9dB
-    Voice->>DSP: Apply Pitch Thickening (0.95x speed-shift)
-    DSP->>Master: Play Thickened Arena Voice Clip
-    DSP->>Music: Release ducking -> Music swells to -6dB (post_delay_ms = 400ms)
-    
-    Note over Voice,Master: Event 3: $ROSTER Loop (#33 Roy, #24 Chelios, #26 Naslund...)
+
+    Note over SFX,Master: Event 1: Intro SFX ("sfx_canadiens-de-montreal.wav")
+    SFX->>DSP: Trim to clip_duration_ms (4500ms) + apply fade_out_ms (1500ms)
+    DSP->>Master: Overlay SFX over music -> Smoothly fades into background
+
+    Note over Voice,Master: Events 2–4: Opening Hype ("Welcome to DevFest!", "Make Some Noise!", "For Your CANADIENS!")
+    Voice->>DSP: Apply Pitch Thickening (0.95x) + Stadium PA Reverb ("stadium")
+    DSP->>Master: Play Booming Arena Voice over full music (ducking = false)
+
+    Note over SFX,Master: Event 5: Crowd Cheer ("sfx_crowd-cheer-and-applause.wav")
+    SFX->>DSP: Apply smooth fade_out_ms (1500ms, dry signal)
+    DSP->>Master: Crowd roar blends seamlessly into music (post_delay_ms = 400ms)
+
+    Note over Voice,Master: Events 6–7: "Hitting the Forum Ice!" & $ROSTER Loop (#33 Roy, #24 Chelios...)
     loop Each Player in Roster
-        Voice->>Master: "Number 33, Saint Patrick, Pat-REEK RWAH!" (Ducked)
-        DSP->>Music: Brief music swell between players (post_delay_ms = 1200ms)
+        DSP->>Music: Duck background music down to -9dB
+        Voice->>DSP: Apply Stadium PA Reverb ("stadium" + 600ms echo tail)
+        DSP->>Master: "Number 33, Saint Patrick, Pat-REEK RWAH!"
+        DSP->>Music: Release ducking -> Music swells between players (post_delay_ms = 1200ms)
     end
-    
-    Note over Voice,Master: Event 4: Climax ("GO HABS GO!")
-    DSP->>Music: Deep ducking (-12dB)
-    Voice->>DSP: Pitch Thickening active
+
+    Note over Voice,Master: Event 8: Climax ("GO HABS GO!")
+    Voice->>DSP: Apply Pitch Thickening + Massive Coliseum Reverb ("coliseum" + 900ms tail)
     DSP->>Master: "GO HABS GO! Les Canadiens!"
-    DSP->>Music: Release ducking -> Outro music guitar solo swells (3000ms)
-    Music->>Master: Fade out music -> End of Show
+    DSP->>Music: Outro music swells (post_delay_ms = 3000ms) + Final 3000ms Tail Fade-Out
+    Music->>Master: Normalize Master Mix (-0.1dB headroom) -> End of Show
 ```
 
 ---
@@ -149,6 +156,7 @@ sequenceDiagram
 - **Audio Engineering & DSP**:
   - Stadium PA echo, multi-tap acoustic reverb (`subtle`, `arena`, `stadium`, `coliseum`), and low-end bass boom (<220Hz chest resonance).
   - Voice pitch thickening (0.95x speed-shifted and resampled for stadium resonance).
+  - Per-clip duration trimming (`clip_duration_ms`) and smooth fade-in / fade-out volume envelopes (`fade_in_ms`, `fade_out_ms`) so SFX and crowd cheers blend seamlessly into the background track.
   - Dynamic background music ducking (drops `-8dB` to `-15dB` during announcements).
   - Peak and clip volume normalization.
 - **Drop-in Custom Audio**: Place custom MP3 background tracks in `music/` or pre-recorded clips/horns in `input/` to bypass AI generation for selected items.
@@ -270,7 +278,7 @@ TeamHypeAI provides 6 dedicated CLI utilities designed for distinct stages of th
 ---
 
 ### 4. `assemble_show.py` - Audio DSP Mixer & Show Stitching Engine
-- **What it is & Why**: An audio engineering engine powered by Pydub and FFmpeg. It reads `run_of_show.json`, sequences audio events, applies pitch thickening, layers multi-tap stadium PA echo/reverb and bass boom, dynamically ducks background music during speech announcements, normalizes audio levels, and exports the master MP3.
+- **What it is & Why**: An audio engineering engine powered by Pydub and FFmpeg. It reads `run_of_show.json`, sequences audio events, trims clip durations, applies pitch thickening, layers multi-tap stadium PA echo/reverb and bass boom, shapes fade-in/fade-out volume envelopes, dynamically ducks background music during speech announcements, normalizes audio levels, and exports the master MP3.
 - **Key CLI Flags**:
   - `-c`, `--config`: Path to Run of Show JSON config (default: `run_of_show.json`).
   - `-r`, `--roster-config`: Overrides roster template file used for `$ROSTER` macro expansion.
@@ -409,6 +417,16 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
   },
   "sequence": [
     {
+      "file": "sfx_canadiens-de-montreal.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 0,
+      "clip_duration_ms": 4500,
+      "fade_out_ms": 1500,
+      "thicken": false,
+      "reverb": false
+    },
+    {
       "file": "Welcome to DevFest.wav",
       "ducking": false,
       "pre_delay_ms": 500,
@@ -423,6 +441,15 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
       "post_delay_ms": 300,
       "thicken": true,
       "reverb": "stadium"
+    },
+    {
+      "file": "sfx_crowd-cheer-and-applause.wav",
+      "ducking": false,
+      "pre_delay_ms": 0,
+      "post_delay_ms": 400,
+      "fade_out_ms": 1500,
+      "thicken": false,
+      "reverb": false
     },
     {
       "file": "$ROSTER",
@@ -450,7 +477,7 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
    - For high-energy shouting clips over driving rock music, setting ducking to `false` lets the music pump at full energy behind the voice.
 2. **The `$ROSTER` Macro**:
    - Placing `{"file": "$ROSTER"}` in `sequence` automatically expands into individual announcement events for every player defined in your roster file, in exact roster order.
-   - The `pre_delay_ms`, `post_delay_ms`, `thicken`, and `reverb` defined on `$ROSTER` govern each player announcement (and can be overridden per player in `roster_templates.json`).
+   - The `pre_delay_ms`, `post_delay_ms`, `thicken`, `reverb`, `clip_duration_ms`, and `fade_in_ms` / `fade_out_ms` defined on `$ROSTER` govern each player announcement (and can be overridden per player in `roster_templates.json`).
 3. **Stadium Echo, Reverb & Bass Boom (`reverb` & `settings.reverb_preset`)**:
    - Adds multi-tap acoustic reflections (early slapback + late stadium bowl decay with progressive high-frequency air damping) and sub-220Hz low-end bass warmth so announcements sound loud and booming.
    - Built-in presets: `"subtle"` (indoor gym), `"arena"` (hockey/basketball arena), `"stadium"` (championship stadium PA), `"coliseum"` (massive open-air canyon tail), or `false` / `"none"` (dry, ideal for pre-recorded SFX/crowd cheers).
