@@ -258,6 +258,45 @@ def clean_spoken_text(text: str, prefix: str = "", allow_vocal_tags: bool = True
     return cleaned
 
 
+def get_mascot_slug(config_or_str) -> str:
+    """
+    Extracts and normalizes a clean lowercase mascot/team slug (e.g. 'canadiens', 'icebreakers')
+    from a roster configuration dict or raw string.
+    """
+    if isinstance(config_or_str, dict):
+        raw = (
+            config_or_str.get("team_mascot")
+            or config_or_str.get("mascot")
+            or config_or_str.get("team_name")
+            or ""
+        )
+    else:
+        raw = str(config_or_str or "")
+    slug = re.sub(r"[^a-z0-9]+", "_", raw.strip().lower()).strip("_")
+    return slug
+
+
+def apply_mascot_slug_to_filename(filename: str, mascot_slug: str) -> str:
+    """
+    Appends '_{mascot_slug}' before the file extension for generated audio/output artifacts
+    while keeping the operation idempotent and leaving shared SFX ('sfx_*') and '$ROSTER' untouched.
+    """
+    if not filename or not mascot_slug or filename == "$ROSTER":
+        return filename
+    base_name = os.path.basename(filename)
+    if base_name.lower().startswith("sfx_"):
+        return filename
+    slug_clean = get_mascot_slug(mascot_slug)
+    if not slug_clean:
+        return filename
+    root, ext = os.path.splitext(filename)
+    if not ext:
+        ext = ".wav"
+    if root.lower().endswith(f"_{slug_clean}"):
+        return filename
+    return f"{root}_{slug_clean}{ext}"
+
+
 def build_speech_part(text: str, voice_name: str = "Puck", style: str = ""):
     """
     Constructs a google.genai types.Part configured for Gemini 3.8 Flash TTS

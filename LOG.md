@@ -7,6 +7,13 @@
 
 ---
 
+## [2026-11-01] Live Demo Start-to-Finish Setup Wizard & Mascot-Slugged Artifacts
+- **Mascot-Slugged Artifact Naming (`get_mascot_slug` & `apply_mascot_slug_to_filename` in `common.py`)**: Standardized `_{mascot_slug}` filename tagging across `setup_wizard.py`, `generate_gemini_audio.py`, and `assemble_show.py` for all generated intro clips (`input/*_<slug>.wav`), player clips (`input/#Num Name_<slug>.wav`), custom music tracks (`music/background_music_<slug>.mp3`), and assembled output mixes (`output/*_<slug>.mp3`), while leaving pre-recorded `sfx_*` assets untouched and preventing cache collisions or overwriting existing team files.
+- **Streamlined Crowd-Polling & Start-to-Finish Flow (`setup_wizard.py`)**: Tucked low-level model/batching/platform questions behind an optional `[y/N]` toggle, added smart mascot derivation and team-specific intro clip adaptation when team/mascot changes, added `[K]eep / [A]dd / [N]ew` player roster polling options, and added built-in start-to-finish execution (`generate_gemini_audio.py` + `assemble_show.py` + optional macOS `afplay` playback).
+- **Resilient Batched TTS Silence Slicing (`generate_audio_batch_gemini` in `generate_gemini_audio.py`)**: Upgraded inter-clip delimiters to triple `<short pause>` tags and added `(N - 1)` longest-silence boundary detection via `pydub.silence.detect_silence` so clips containing internal `<short pause>` tags slice cleanly in a single batch TTS call.
+
+---
+
 ## [2026-11-01] Per-Clip Fade-Out & Fade-In Envelope Controls in Run of Show
 - **Envelope Resolution (`resolve_fade_ms` in `assemble_show.py`)**: Added support for `fade_out_ms` / `fade_out` and `fade_in_ms` / `fade_in` on any sequence event (as well as `$ROSTER` player overrides and global `default_fade_out_ms` / `default_fade_in_ms` settings). Accepts explicit milliseconds (`1500`), booleans (`true` -> `1500ms` fade-out / `500ms` fade-in), or duration strings (`"1500ms"`, `"1.5s"`), clamped safely to the active clip duration.
 - **SFX Blending in Run of Show Configs**: Configured `"fade_out_ms": 1500` on SFX examples across `run_of_show.json` configs so SFX clips smoothly blend into the background music and become inaudible instead of cutting off abruptly.

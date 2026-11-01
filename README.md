@@ -177,12 +177,14 @@ For both new users and seasoned producers, we recommend following this clear 5-s
     (Live Game-Day Impact)                                                   (Audio DSP Mixing Engine)
 ```
 
-### Step 1: Run the Interactive Setup Wizard (Start Here!)
-Launch [`setup_wizard.py`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/setup_wizard.py). The wizard detects any existing configuration files (`roster_templates.json` and `run_of_show.json`) and loads their values as **implied defaults**. You can press **Enter** to keep existing settings or enter new values for your team:
+### Step 1: Run the Interactive Setup & Live Demo Wizard (Start Here!)
+Launch [`setup_wizard.py`](setup_wizard.py). The wizard detects any existing configuration files (`roster_templates.json` and `run_of_show.json`) and loads their values as **implied defaults**. Press **Enter** to accept defaults or poll your crowd/team for custom values.
+
+The wizard can also execute the **entire production pipeline start-to-finish** in one session—writing your JSON configs, generating mascot-slugged AI voice/music clips (`_<mascot_slug>.wav`), assembling the final stadium mix (`output/*_<mascot_slug>.mp3`), and optionally playing the result right in your terminal:
 ```bash
 python setup_wizard.py
 ```
-*Outputs: `roster_templates_<team>.json` and `run_of_show_<team>.json`.*
+*Outputs: `roster_templates_<mascot_slug>.json`, `run_of_show_<mascot_slug>.json`, `input/*_<mascot_slug>.wav`, and `output/*_<mascot_slug>.mp3`.*
 
 ### Step 2 (Optional): Audition Voice Personas
 Before generating audio for an entire team roster, audition Google Gemini's curated high-energy stadium voices (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`) in `samples/`:
@@ -191,7 +193,7 @@ python generate_voice_samples.py --featured-only
 ```
 
 ### Step 3: Generate AI Voice Clips & Entrance Music
-Run [`generate_gemini_audio.py`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/generate_gemini_audio.py) using your roster template. First, run a **dry-run** to preview generated announcer dialogue and verify estimated API token costs:
+Run [`generate_gemini_audio.py`](generate_gemini_audio.py) using your roster template. First, run a **dry-run** to preview generated announcer dialogue and verify estimated API token costs:
 ```bash
 # Preview prompts and cost estimate without calling Google APIs:
 python generate_gemini_audio.py -r roster_templates.json --dry-run
@@ -201,7 +203,7 @@ python generate_gemini_audio.py -r roster_templates.json
 ```
 
 ### Step 4: Assemble the Master Stadium Audio Mix
-Stitch and master your voice clips, sound effects, and entrance music using [`assemble_show.py`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/assemble_show.py):
+Stitch and master your voice clips, sound effects, and entrance music using [`assemble_show.py`](assemble_show.py):
 ```bash
 python assemble_show.py -c run_of_show.json
 ```
@@ -216,9 +218,12 @@ Copy or stream the assembled MP3 from your phone or tablet to the arena soundboa
 
 TeamHypeAI provides 6 dedicated CLI utilities designed for distinct stages of the sports audio production lifecycle:
 
-### 1. `setup_wizard.py` - Interactive Team Onboarding Wizard
-- **What it is & Why**: An interactive terminal wizard that guides first-time users through entering team identity, announcer personas, voice selection, AI models, background music prompts, intro clips, and player rosters. It prevents JSON formatting errors and eliminates boilerplate.
-- **Key Feature**: Reads existing `roster_templates.json` and `run_of_show.json` files and presents their values as implied defaults in brackets `[...]`. Pressing Enter accepts the default.
+### 1. `setup_wizard.py` - Interactive Live Demo & Team Onboarding Wizard
+- **What it is & Why**: A streamlined interactive terminal wizard designed for both live crowd-polled demos and first-time onboarding. Prompts for key creative inputs (team name, mascot/slogan, announcer persona, voice selection, music prompt, intro clips, and player roster) while tucking technical model/batching settings behind smart defaults.
+- **Key Features**:
+  - **Implied Defaults**: Reads `roster_templates.json` and `run_of_show.json` as baseline defaults—press **Enter** to accept any default.
+  - **Mascot-Slugged Artifacts**: Automatically tags generated JSON configs (`roster_templates_<slug>.json`, `run_of_show_<slug>.json`), voice clips (`input/*_<slug>.wav`), custom music tracks (`music/background_music_<slug>.mp3`), and final master mixes (`output/*_<slug>.mp3`) with your mascot slug so new runs never overwrite existing artifacts.
+  - **Start-to-Finish Execution**: Directly invokes [`generate_gemini_audio.py`](generate_gemini_audio.py) and [`assemble_show.py`](assemble_show.py) at the end of the wizard (with optional audio playback on macOS).
 - **Usage**:
   ```bash
   python setup_wizard.py
@@ -297,7 +302,7 @@ TeamHypeAI provides 6 dedicated CLI utilities designed for distinct stages of th
 ---
 
 ### 5. `update_cost_rates.py` - Model & Pricing Rate Card Tracker
-- **What it is & Why**: Audits and synchronizes model rate cards and platform availability booleans (`ai_studio` vs `vertex_ai`) in [`config/cost_rates.json`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/config/cost_rates.json) against official Google Cloud and Google AI Studio documentation.
+- **What it is & Why**: Audits and synchronizes model rate cards and platform availability booleans (`ai_studio` vs `vertex_ai`) in [`config/cost_rates.json`](config/cost_rates.json) against official Google Cloud and Google AI Studio documentation.
 - **Key CLI Flags**:
   - `--check`: Audits local configuration and reports discrepancies without modifying files.
   - `--update`: Updates `config/cost_rates.json` with latest rates and platform matrices.
@@ -310,7 +315,7 @@ TeamHypeAI provides 6 dedicated CLI utilities designed for distinct stages of th
 ---
 
 ### 6. `update_gemini_voices.py` - Gemini TTS Voice Catalog Tracker
-- **What it is & Why**: Queries upstream Google Gemini TTS voice catalogs, applies strict high-energy sports announcer filtering, and updates [`config/gemini_voices.json`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/config/gemini_voices.json).
+- **What it is & Why**: Queries upstream Google Gemini TTS voice catalogs, applies strict high-energy sports announcer filtering, and updates [`config/gemini_voices.json`](config/gemini_voices.json).
 - **Key CLI Flags**:
   - `--check`: Audits discovered voices against local configuration.
   - `--update`: Updates `config/gemini_voices.json` with newly qualified announcer personas.
@@ -505,11 +510,11 @@ To adhere to strict **DRY (Don't Repeat Yourself)** principles, all model config
 | **`lyria-3.5`** | Stadium Music Generator | AI Studio (Exclusive) | High-energy loopable stadium entrance tracks (no vocals) |
 
 ### 📌 Single Sources of Truth:
-- 📊 **Model Specifications, Availability & Rates**: [`config/cost_rates.json`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/config/cost_rates.json)  
+- 📊 **Model Specifications, Availability & Rates**: [`config/cost_rates.json`](config/cost_rates.json)  
   *Audit or update live rates anytime with: `python update_cost_rates.py --check`*
-- 🎙️ **Stadium Voice Personas**: [`config/gemini_voices.json`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/config/gemini_voices.json)  
+- 🎙️ **Stadium Voice Personas**: [`config/gemini_voices.json`](config/gemini_voices.json)  
   *Curated English high-energy stadium announcers (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`). Audit with: `python update_gemini_voices.py --check`*
-- 📖 **Comprehensive Technical Reference**: [`GEMINI.md`](file:///Users/aitalian/Sandbox/gitlab/aitalian/devfestmtl26-teamhypeai/GEMINI.md)  
+- 📖 **Comprehensive Technical Reference**: [`GEMINI.md`](GEMINI.md)  
   *Full technical documentation detailing the Interactions API contract, audio DSP algorithms, regional phonetics, and platform resolution precedence.*
 
 ---

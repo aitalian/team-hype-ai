@@ -5,7 +5,12 @@ import argparse
 from pydub import AudioSegment
 from pydub.effects import normalize
 
-from common import load_json_file, print_cli_banner
+from common import (
+    load_json_file,
+    print_cli_banner,
+    get_mascot_slug,
+    apply_mascot_slug_to_filename,
+)
 
 # --- DEFAULTS ---
 DEFAULT_CONFIG_FILE = "run_of_show.json"
@@ -274,12 +279,15 @@ def ensure_music_length(music, required_len, current_cursor, loop_enabled=True):
 def expand_sequence(sequence, roster_config_path="roster_templates.json"):
     """
     Expands $ROSTER macro placeholders in sequence with entries from roster_templates.json.
+    Applies mascot_slug to generated player clip filenames.
     """
     expanded = []
     roster_data = []
+    mascot_slug = ""
     if os.path.exists(roster_config_path):
         t_data = load_json_file(roster_config_path, description="roster config template")
         roster_data = t_data.get("roster", [])
+        mascot_slug = get_mascot_slug(t_data)
 
     for event in sequence:
         file_val = event.get("file", "")
@@ -303,9 +311,10 @@ def expand_sequence(sequence, roster_config_path="roster_templates.json"):
             for player in roster_data:
                 p_num = player.get("number", "")
                 p_name = player.get("name", "")
+                base_p_file = player.get("filename") or f"#{p_num} {p_name}.wav"
 
                 p_event = dict(event)
-                p_event["file"] = f"#{p_num} {p_name}.wav"
+                p_event["file"] = apply_mascot_slug_to_filename(base_p_file, mascot_slug) if mascot_slug else base_p_file
 
                 for key in override_keys:
                     if player.get(key) is not None:
@@ -317,10 +326,44 @@ def expand_sequence(sequence, roster_config_path="roster_templates.json"):
 
     return expanded
 
+
+def resolve_input_clip_path(input_folder: str, filename: str, mascot_slug: str = "") -> tuple:
+    """
+    Resolves the path to an input clip in input_folder, preferring mascot-slugged filenames
+    (e.g. 'Welcome to DevFest_icebreakers.wav') first, then exact filename, and finally
+    falling back to an un-slugged base filename if only legacy un-slugged files exist on disk.
+    Returns (resolved_full_path, resolved_filename).
+    """
+    if mascot_slug:
+        slugged_fname = apply_mascot_slug_to_filename(filename, mascot_slug)
+        slugged_path = os.path.join(input_folder, slugged_fname)
+        if os.path.exists(slugged_path):
+            return slugged_path, slugged_fname
+
+    exact_path = os.path.join(input_folder, filename)
+    if os.path.exists(exact_path):
+        return exact_path, filename
+
+    if mascot_slug:
+        suffix = f"_{get_mascot_slug(mascot_slug)}"
+        root, ext = os.path.splitext(filename)
+        if root.lower().endswith(suffix):
+            unslugged_fname = f"{root[:-len(suffix)]}{ext}"
+            unslugged_path = os.path.join(input_folder, unslugged_fname)
+            if os.path.exists(unslugged_path):
+                return unslugged_path, unslugged_fname
+
+    return exact_path, filename
+
+
 def assemble_mix(config, roster_config_override=None, cli_reverb_preset=None, cli_no_reverb=False):
     settings = config.get("settings", {})
     raw_sequence = config.get("sequence", [])
     roster_config = roster_config_override or settings.get("roster_config", "roster_templates.json")
+    mascot_slug = ""
+    if os.path.exists(roster_config):
+        t_data = load_json_file(roster_config, description="roster config template")
+        mascot_slug = get_mascot_slug(t_data)
     sequence = expand_sequence(raw_sequence, roster_config)
 
     input_folder = settings.get("input_folder", ".")
@@ -440,7 +483,7 @@ def assemble_mix(config, roster_config_override=None, cli_reverb_preset=None, cl
         # Per-clip boost override
         item_voice_boost = event.get('voice_boost_db', global_voice_boost)
 
-        full_clip_path = os.path.join(input_folder, filename)
+        full_clip_path, filename = resolve_input_clip_path(input_folder, filename, mascot_slug=mascot_slug)
         if not os.path.exists(full_clip_path):
             print(f"⚠️ Warning: File '{filename}' not found. Skipping.")
             continue

@@ -558,16 +558,22 @@ The voice configuration file acts as the single source of truth for all voice-re
 ## 📐 System Architecture, Tooling & Configuration Reference
 
 ### 1. End-to-End Pipeline & Tooling Lifecycle
-The full technical production lifecycle operates through 4 distinct decoupled layers:
-1. **Interactive Configuration Layer (`setup_wizard.py`)**: Interactively generates or updates `roster_templates.json` and `run_of_show.json`. Inspects existing configurations to present implied defaults.
+The full technical production lifecycle operates through 4 distinct decoupled layers (all of which can also be executed start-to-finish directly from `setup_wizard.py`):
+1. **Interactive Live Demo & Configuration Layer (`setup_wizard.py`)**:
+   - Interactively generates or updates `roster_templates_<mascot_slug>.json` and `run_of_show_<mascot_slug>.json`, loading implied defaults from `roster_templates.json` and `run_of_show.json`.
+   - Streamlined for live conference crowd polling: keeps low-level model/batching/platform questions tucked behind an optional advanced toggle (`N` by default), auto-derives a default mascot slug when the team name is changed, adapts team-specific intro clips (`For Your <MASCOT>`, `LETS GO <MASCOT>`), and supports keeping, adding crowd-polled players (`[A]dd`), or replacing (`[N]ew`) the roster.
+   - Automatically tags all generated intro clips, player clips, custom music tracks, and assembled output MP3s with `_{mascot_slug}` via `get_mascot_slug()` and `apply_mascot_slug_to_filename()` in `common.py` (while leaving shared `sfx_*` assets and `$ROSTER` untouched) to prevent cache collisions or overwriting existing team artifacts.
+   - Can execute the entire production pipeline start-to-finish (`generate_gemini_audio.py -r <roster> -y` followed by `assemble_show.py -c <show> -r <roster> -f`, plus optional `afplay` speaker playback on macOS).
 2. **Voice Persona Audition Layer (`generate_voice_samples.py`)**: Synthesizes short audition clips in `samples/` for Google Gemini voice personas (`Puck`, `Charon`, `Kore`, `Fenrir`, `Aoede`) across varying sustained speech styles (`speech_metadata.style`).
 3. **AI Speech & Music Generation Layer (`generate_gemini_audio.py`)**:
    - Synthesizes LLM announcer scripts using `gemini-3.8-flash` via the Interactions API (`client.interactions.create`) with UPPERCASE emphasis and `<short pause>` events.
-   - Synthesizes PA voice clips using `gemini-3.8-flash-tts` into `input/` using structured `types.SpeechMetadata(speaker=voice_name, style=style)`.
+   - Synthesizes PA voice clips using `gemini-3.8-flash-tts` into `input/` using structured `types.SpeechMetadata(speaker=voice_name, style=style)` and mascot-slugged filenames (`_<mascot_slug>.wav`).
+   - Uses triple-pause delimiters (`<short pause> <short pause> <short pause>`) for batched TTS requests and smart `(N - 1)` longest-silence boundary detection via `pydub.silence.detect_silence` so clips containing internal `<short pause>` tags still slice cleanly into `N` individual WAV files in a single batch call.
    - Synthesizes pure instrumental entrance music using `lyria-3.5` into `music/` with negative prompts (`strictly NO vocals, NO singing, NO lyrics`).
 4. **Audio DSP Mixing & Mastering Layer (`assemble_show.py`)**:
    - Sequences audio events defined in `run_of_show.json`.
-   - Expands the `$ROSTER` macro across all player entries.
+   - Expands the `$ROSTER` macro across all player entries using mascot-slugged filenames (`#Num Name_<mascot_slug>.wav`), resolving clips via `resolve_input_clip_path()` (preferring slugged files first, with graceful fallback to un-slugged files).
+   - Trims clip duration (`clip_duration_ms`) and applies per-clip fade-in/fade-out volume envelopes (`fade_in_ms`, `fade_out_ms`).
    - Applies pitch thickening (0.95x speed-shift resampled back to 44.1kHz).
    - Applies multi-tap stadium PA echo/reverb (`subtle`, `arena`, `stadium`, `coliseum`) and sub-220Hz bass boom resonance.
    - Dynamically ducks background music (attenuating -9dB to -15dB during speech clips and reverb tails).

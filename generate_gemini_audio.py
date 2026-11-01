@@ -128,6 +128,8 @@ from common import (
     resolve_api_engine,
     extract_audio_bytes_from_interaction,
     format_error_brief,
+    get_mascot_slug,
+    apply_mascot_slug_to_filename,
 )
 
 
@@ -338,7 +340,7 @@ def build_intro_clip_announcement(clip, prefix="", global_speech_style=""):
     return clean_spoken_text(display_text, prefix=prefix)
 
 
-def build_player_announcement(player, template, prefix="", global_speech_style=""):
+def build_player_announcement(player, template, prefix="", global_speech_style="", mascot_slug=""):
     num = player.get("number", "")
     name = player.get("name", "")
     phonetic_name = player.get("phonetic") or player.get("pronunciation")
@@ -346,8 +348,9 @@ def build_player_announcement(player, template, prefix="", global_speech_style="
     custom_intro = player.get("custom_intro")
     pretext = player.get("pretext") or player.get("prefix")
 
-    # Filename uses official player jersey number and name
-    filename = f"#{num} {name}.wav"
+    # Filename uses official player jersey number, name, and mascot slug
+    base_filename = player.get("filename") or f"#{num} {name}.wav"
+    filename = apply_mascot_slug_to_filename(base_filename, mascot_slug) if mascot_slug else base_filename
 
     # Spoken audio prompt uses phonetic overrides if provided, else official values
     spoken_name = phonetic_name if phonetic_name else name
@@ -678,12 +681,12 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
 
     try:
         from pydub import AudioSegment
-        from pydub.silence import split_on_silence
+        from pydub.silence import split_on_silence, detect_silence
     except ImportError:
         print("   ⚠️ pydub library missing or missing audioop. Falling back to 1:1 TTS generation.")
         return False
 
-    pause_delimiter = " <short pause> <short pause> "
+    pause_delimiter = " <short pause> <short pause> <short pause> "
     combined_text = pause_delimiter.join(clean_spoken_text(item['text'], allow_vocal_tags=True) for item in batch_items)
     batch_filenames = [item['filename'] for item in batch_items]
     part = build_speech_part(combined_text, voice_name=voice_name, style=batch_style)
@@ -772,12 +775,52 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
                     dBFS = full_audio.dBFS
                     silence_threshold = (dBFS - 16) if dBFS != float("-inf") else -40
 
-                    chunks = split_on_silence(
-                        full_audio,
-                        min_silence_len=600,
-                        silence_thresh=silence_threshold,
-                        keep_silence=200
-                    )
+                    chunks = []
+                    # 1. Try progressive min_silence_len values first
+                    for candidate_min_len in (1100, 950, 800, 650, 1300, 500):
+                        trial_chunks = split_on_silence(
+                            full_audio,
+                            min_silence_len=candidate_min_len,
+                            silence_thresh=silence_threshold,
+                            keep_silence=200
+                        )
+                        if len(trial_chunks) == len(batch_items):
+                            chunks = trial_chunks
+                            break
+
+                    # 2. If clips contain internal <short pause> tags causing extra splits,
+                    #    locate the (N - 1) longest internal silent gaps corresponding to the triple-pause delimiters
+                    if len(chunks) != len(batch_items) and len(batch_items) > 1:
+                        all_silences = detect_silence(
+                            full_audio,
+                            min_silence_len=350,
+                            silence_thresh=silence_threshold
+                        )
+                        audio_len = len(full_audio)
+                        # Trim leading/trailing silence boundaries if present
+                        trim_start = all_silences[0][1] if (all_silences and all_silences[0][0] <= 50) else 0
+                        trim_end = all_silences[-1][0] if (all_silences and all_silences[-1][1] >= audio_len - 50) else audio_len
+                        internal_silences = [
+                            (s, e) for (s, e) in all_silences
+                            if s > trim_start + 150 and e < trim_end - 150
+                        ]
+                        needed_splits = len(batch_items) - 1
+                        if len(internal_silences) >= needed_splits:
+                            top_silences = sorted(
+                                internal_silences,
+                                key=lambda se: (se[1] - se[0]),
+                                reverse=True
+                            )[:needed_splits]
+                            top_silences.sort(key=lambda se: se[0])
+                            rebuilt = []
+                            cur_pos = max(0, trim_start - 150)
+                            for s_start, s_end in top_silences:
+                                seg_end = min(audio_len, s_start + 150)
+                                rebuilt.append(full_audio[cur_pos:seg_end])
+                                cur_pos = max(0, s_end - 150)
+                            rebuilt.append(full_audio[cur_pos:min(audio_len, trim_end + 150)])
+                            if len(rebuilt) == len(batch_items):
+                                chunks = rebuilt
 
                     if len(chunks) == len(batch_items):
                         for idx, item in enumerate(batch_items):
@@ -787,7 +830,6 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
 
                         if os.path.exists(temp_batch_path):
                             os.remove(temp_batch_path)
-                        time.sleep(6)
                         return True
                     else:
                         print(f"   ⚠️ Batch audio slicing produced {len(chunks)} audio segments for {len(batch_items)} items.")
@@ -1159,6 +1201,7 @@ def main():
     player_template = config.get("player_template", "Number {number}, {name}!")
     roster = config.get("roster", [])
     intro_clips = config.get("intro_clips", [])
+    mascot_slug = get_mascot_slug(config)
 
     # Determine which items get LLM Script Enhancement
     intro_enhancements = []
@@ -1192,6 +1235,8 @@ def main():
     print(f"   Script Model:       {llm_model} (mode: {enhance_mode})")
     print(f"   Music AI Model:     {music_model}")
     print(f"   Announcer Voice:    {voice_persona}")
+    if mascot_slug:
+        print(f"   Mascot File Slug:   _{mascot_slug}")
     print(f"   Speech Style:       {format_speech_style(global_speech_style)}")
     if regional_accent:
         print(f"   Regional Accent:    {regional_accent}")
@@ -1207,7 +1252,7 @@ def main():
 
     if not args.skip_voice:
         for idx, clip in enumerate(intro_clips):
-            fname = clip["filename"]
+            fname = apply_mascot_slug_to_filename(clip["filename"], mascot_slug)
             p_file = os.path.join(args.output_dir, fname)
             is_missing = args.force or not (os.path.exists(p_file) and os.path.getsize(p_file) > 0)
             if is_missing:
@@ -1228,7 +1273,7 @@ def main():
                 })
 
         for idx, p in enumerate(roster):
-            fname, txt = build_player_announcement(p, player_template)
+            fname, txt = build_player_announcement(p, player_template, mascot_slug=mascot_slug)
             raw_p_style = p.get("speech_style") or p.get("style") or p.get("audio_tags") or p.get("audio_tag") or global_speech_style
             p_style = format_speech_style(raw_p_style, regional_accent=regional_accent, accent_guidance=accent_guidance)
             full_p = os.path.join(args.output_dir, fname)
@@ -1282,7 +1327,7 @@ def main():
         print("🔍 DRY RUN MODE -- Generated Dialogue & Batch Execution Preview:")
         print("\n--- INTRO CLIPS ---")
         for idx, clip in enumerate(intro_clips):
-            fname = clip["filename"]
+            fname = apply_mascot_slug_to_filename(clip["filename"], mascot_slug)
             out_p = os.path.join(args.output_dir, fname)
             is_cached = not args.force and os.path.exists(out_p) and os.path.getsize(out_p) > 0
             cache_tag = " ⏩ [Existing File Cached - Will Skip]" if is_cached else ""
@@ -1295,7 +1340,7 @@ def main():
 
         print("\n--- ROSTER CLIPS ---")
         for idx, p in enumerate(roster):
-            fname, txt = build_player_announcement(p, player_template)
+            fname, txt = build_player_announcement(p, player_template, mascot_slug=mascot_slug)
             raw_p_style = p.get("speech_style") or p.get("style") or p.get("audio_tags") or p.get("audio_tag") or global_speech_style
             p_style = format_speech_style(raw_p_style, regional_accent=regional_accent, accent_guidance=accent_guidance)
             out_p = os.path.join(args.output_dir, fname)
