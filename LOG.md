@@ -7,6 +7,12 @@
 
 ---
 
+## [2026-11-01] Per-Clip Fade-Out & Fade-In Envelope Controls in Run of Show
+- **Envelope Resolution (`resolve_fade_ms` in `assemble_show.py`)**: Added support for `fade_out_ms` / `fade_out` and `fade_in_ms` / `fade_in` on any sequence event (as well as `$ROSTER` player overrides and global `default_fade_out_ms` / `default_fade_in_ms` settings). Accepts explicit milliseconds (`1500`), booleans (`true` -> `1500ms` fade-out / `500ms` fade-in), or duration strings (`"1500ms"`, `"1.5s"`), clamped safely to the active clip duration.
+- **SFX Blending in Run of Show Configs**: Configured `"fade_out_ms": 1500` on SFX examples across `run_of_show.json` configs so SFX clips smoothly blend into the background music and become inaudible instead of cutting off abruptly.
+
+---
+
 ## [2026-10-27] Stadium PA Echo, Multi-Tap Reverb & Bass Boom DSP Engine & Architecture Blueprint
 - **Multi-Tap Acoustic Reverb & Bass Resonance (`apply_stadium_reverb` in `assemble_show.py`)**: Implemented a pure-Python/Pydub stadium DSP chain combining sub-220Hz low-end bass warmth ("PA chest boom"), multi-tap early slapback and late arena bowl reflections (`45ms`–`950ms`) with progressive low-pass air absorption (`4800Hz` down to `1000Hz`) and `120Hz` high-pass mud filtering, plus automatic clip tail extension (`tail_ms`) so echoes ring out smoothly over ducked background music.
 - **Built-in Venue Acoustic Presets (`REVERB_PRESETS`)**: Added 5 presets (`none`, `subtle`, `arena`, `stadium`, `coliseum`) alongside support for custom per-event dictionary parameters (`wet_gain_offset_db`, `bass_boost_db`, `tail_ms`, `taps`).

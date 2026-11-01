@@ -457,9 +457,13 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
    - You can also pass a custom dictionary on any event: `{"preset": "stadium", "wet_gain_offset_db": 1.5, "bass_boost_db": 4.0, "tail_ms": 700}`.
 4. **Voice Pitch Thickening (`thicken: true`)**:
    - Applies a 0.95x speed-shift resampled back to 44.1kHz. This drops the vocal pitch slightly while preserving duration, giving youth PA announcements the booming, resonant authority of an NHL arena announcer.
-5. **Pacing & Timing (`pre_delay_ms` & `post_delay_ms`)**:
+5. **Pacing & Timing (`pre_delay_ms`, `post_delay_ms` & `clip_duration_ms`)**:
    - `pre_delay_ms`: Extra milliseconds of music before the voice announcement starts (creates dramatic anticipation).
    - `post_delay_ms`: Milliseconds of music swell after the announcement ends before the next clip starts (allows the crowd to cheer or music beat to drop).
+   - `clip_duration_ms`: Trims long SFX or audio clips to a maximum duration in milliseconds.
+6. **Smooth Clip Fade-Out & Fade-In (`fade_out_ms` / `fade_in_ms`)**:
+   - Use `"fade_out_ms": 1500` (or `"fade_out": true` to apply the default `1500ms` fade) on any clip—especially SFX, organ intros, or crowd cheers—so the tail of the clip smoothly fades into the background music and becomes inaudible instead of cutting off abruptly.
+   - Similarly supports `"fade_in_ms": 500` (or `"fade_in": true`) to smoothly ramp a clip's entrance volume.
 
 ---
 

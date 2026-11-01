@@ -19,6 +19,7 @@
       "pre_delay_ms": 0,
       "post_delay_ms": 0,
       "clip_duration_ms": 4500,
+      "fade_out_ms": 1500,
       "thicken": false
     },
     {
@@ -47,6 +48,7 @@
       "ducking": false,
       "pre_delay_ms": 0,
       "post_delay_ms": 400,
+      "fade_out_ms": 1500,
       "thicken": false
     },
     {

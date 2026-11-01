@@ -16,6 +16,7 @@
 
 ## ✅ Completed Milestones
 
+- [x] **Per-Clip Fade-Out & Fade-In Envelope Controls (`assemble_show.py`)**: Added `fade_out_ms` / `fade_out` and `fade_in_ms` / `fade_in` support in `assemble_show.py` (`resolve_fade_ms`) and configured `1500ms` smooth fade-outs on example SFX across Run of Show configs.
 - [x] **Stadium PA Echo, Multi-Tap Reverb & Bass Boom DSP Engine**: Extended `assemble_show.py`, `run_of_show.json`, `run_of_show_with_reverb.json`, and `setup_wizard.py` with multi-tap stadium acoustic reflections, progressive high-frequency air damping, sub-220Hz bass boom resonance, acoustic tail extension, 5 venue presets (`none`, `subtle`, `arena`, `stadium`, `coliseum`), per-clip/per-player overrides, and CLI flags (`--reverb`, `--no-reverb`).
 - [x] **CLI Colored Logo & Utility Context Banners**: Added native ANSI solid colored block sports bullhorn logo (`█`, `▄`, `▀`) and ultra-legible 5-line block typography for `TeamHypeAI` (Gold "TEAM", Cyan "HYPE", White "AI"), alongside structured, word-wrapped context framing ("WHAT IT IS", "HOW IT WORKS") and `NO_COLOR` / `isatty()` degradation across all 6 CLI utilities.
 - [x] **Comprehensive Utility Documentation, Architecture Diagrams & Tuning Guide**: Expanded `README.md` and `GEMINI.md` with Mermaid architecture and audio DSP timeline diagrams, end-to-end user workflow, exhaustive utility script reference for all 6 CLI tools, and a configuration fine-tuning guide for roster and run of show JSON templates.

@@ -12,6 +12,8 @@ DEFAULT_CONFIG_FILE = "run_of_show.json"
 DEFAULT_MUSIC_VOL = -3
 DEFAULT_DUCKING_VOL = -15
 DEFAULT_PRE_SEQUENCE = 3000
+DEFAULT_FADE_IN_MS = 500
+DEFAULT_FADE_OUT_MS = 1500
 
 # Stadium Echo / Reverb Presets:
 # Each preset defines multi-tap acoustic reflections (delay_ms, gain_db, low_pass_hz)
@@ -207,6 +209,50 @@ def apply_thickening(audio_clip):
     thickened = audio_clip._spawn(audio_clip.raw_data, overrides={'frame_rate': new_sample_rate})
     return thickened.set_frame_rate(44100)
 
+
+def resolve_fade_ms(event, key_prefix, default_ms=DEFAULT_FADE_OUT_MS, clip_len=0):
+    """
+    Resolves fade duration in milliseconds for an event ('fade_out_ms' / 'fade_out' or 'fade_in_ms' / 'fade_in').
+    Supports:
+      - Integer/float milliseconds: {"fade_out_ms": 1500} or {"fade_out": 1500}
+      - Boolean True: {"fade_out": true} -> uses default_ms (e.g. 1500ms)
+      - String duration: {"fade_out": "1500ms"} or {"fade_out": "1.5s"}
+      - False / None / 0 -> 0 (disabled)
+    Clamps result to clip_len so fade duration never exceeds total clip length.
+    """
+    raw_val = event.get(f"{key_prefix}_ms")
+    if raw_val is None:
+        raw_val = event.get(key_prefix)
+
+    fade_ms = 0
+    if raw_val is True:
+        fade_ms = int(default_ms)
+    elif raw_val is False or raw_val is None:
+        fade_ms = 0
+    elif isinstance(raw_val, (int, float)):
+        fade_ms = max(0, int(raw_val))
+    elif isinstance(raw_val, str):
+        norm = raw_val.strip().lower()
+        if norm in ("true", "yes", "on"):
+            fade_ms = int(default_ms)
+        elif norm in ("false", "no", "off", "none", "0", ""):
+            fade_ms = 0
+        else:
+            try:
+                if norm.endswith("ms"):
+                    fade_ms = max(0, int(float(norm[:-2].strip())))
+                elif norm.endswith("s"):
+                    fade_ms = max(0, int(float(norm[:-1].strip()) * 1000))
+                else:
+                    fade_ms = max(0, int(float(norm)))
+            except ValueError:
+                fade_ms = 0
+
+    if clip_len > 0 and fade_ms > clip_len:
+        fade_ms = clip_len
+
+    return fade_ms
+
 def ensure_music_length(music, required_len, current_cursor, loop_enabled=True):
     target_length = current_cursor + required_len
     if len(music) >= target_length:
@@ -247,6 +293,11 @@ def expand_sequence(sequence, roster_config_path="roster_templates.json"):
                 "echo",
                 "voice_boost_db",
                 "ducking_vol_db",
+                "clip_duration_ms",
+                "fade_in",
+                "fade_in_ms",
+                "fade_out",
+                "fade_out_ms",
             )
 
             for player in roster_data:
@@ -286,6 +337,8 @@ def assemble_mix(config, roster_config_override=None, cli_reverb_preset=None, cl
     # Voice Controls
     normalize_clips = settings.get("normalize_voice_clips", True)
     global_voice_boost = settings.get("default_voice_boost_db", 0)
+    default_fade_in_ms = settings.get("default_fade_in_ms", DEFAULT_FADE_IN_MS)
+    default_fade_out_ms = settings.get("default_fade_out_ms", DEFAULT_FADE_OUT_MS)
 
     # Stadium Reverb / Echo Controls
     global_reverb_preset = (
@@ -415,7 +468,14 @@ def assemble_mix(config, roster_config_override=None, cli_reverb_preset=None, cl
         if item_voice_boost != 0:
             clip = clip + item_voice_boost
 
+        # 4. APPLY FADE-IN / FADE-OUT ENVELOPES
         clip_duration = len(clip)
+        eff_fade_in = resolve_fade_ms(event, "fade_in", default_ms=default_fade_in_ms, clip_len=clip_duration)
+        eff_fade_out = resolve_fade_ms(event, "fade_out", default_ms=default_fade_out_ms, clip_len=clip_duration)
+        if eff_fade_in > 0:
+            clip = clip.fade_in(eff_fade_in)
+        if eff_fade_out > 0:
+            clip = clip.fade_out(eff_fade_out)
 
         # --- PRE-DELAY ---
         if pre_delay > 0:
@@ -445,6 +505,10 @@ def assemble_mix(config, roster_config_override=None, cli_reverb_preset=None, cl
             fx_tags.append("Thicken")
         if reverb_cfg:
             fx_tags.append(f"Reverb:{reverb_cfg.get('preset_name', 'stadium')}")
+        if eff_fade_in > 0:
+            fx_tags.append(f"FadeIn:{eff_fade_in}ms")
+        if eff_fade_out > 0:
+            fx_tags.append(f"FadeOut:{eff_fade_out}ms")
         fx_str = f", FX: {'+'.join(fx_tags)}" if fx_tags else ""
         print(f"   [{i+1}/{len(sequence)}] Added {filename} (Vol Boost: {item_voice_boost}dB{fx_str})")
 

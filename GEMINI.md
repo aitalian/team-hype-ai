@@ -294,6 +294,10 @@ Defines event timeline sequence. Incorporates the `$ROSTER` macro which dynamica
     - Per-player overrides in `roster_templates.json` `roster`: Players expanded via `$ROSTER` inherit the `$ROSTER` event's `reverb` setting and can override `reverb` / `echo` individually.
     - CLI flags in `assemble_show.py`: `--reverb {none,subtle,arena,stadium,coliseum}` and `--no-reverb`.
 - **Dynamic Ducking**: Lowers music volume (default `-8dB` to `-15dB`) during voice clip playback (including the extended stadium reverb tail).
+- **Clip Fade-In & Fade-Out Envelopes (`resolve_fade_ms`)**:
+  - Supports per-event `"fade_out_ms"` / `"fade_out"` and `"fade_in_ms"` / `"fade_in"` in `run_of_show.json` (plus global defaults `settings.default_fade_out_ms` [default `1500ms`] and `settings.default_fade_in_ms` [default `500ms`]).
+  - Accepts integer/float milliseconds (`1500`), boolean (`true` uses default duration), or duration strings (`"1500ms"`, `"1.5s"`), automatically clamping to total clip length after `clip_duration_ms` slicing.
+  - Applied after normalization, reverb, and voice boost so SFX and crowd noise clips blend seamlessly into the background track and become inaudible instead of cutting off abruptly.
 - **Normalization**: Applies dry clip normalization, post-reverb clip normalization, and final mix peak normalization (`headroom=0.1`).
 - **Looping & Padding**: Loops background music track seamlessly to match sequence timeline length.
 
