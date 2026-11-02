@@ -178,6 +178,13 @@ For both new users and seasoned producers, we recommend following this clear 5-s
 ```
 
 ### Step 1: Run the Interactive Setup & Live Demo Wizard (Start Here!)
+Start with creating, activating and initializing a Python virtual environment.
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 Launch [`setup_wizard.py`](setup_wizard.py). The wizard detects any existing configuration files (`roster_templates.json` and `run_of_show.json`) and loads their values as **implied defaults**. Press **Enter** to accept defaults or poll your crowd/team for custom values.
 
 The wizard can also execute the **entire production pipeline start-to-finish** in one session—writing your JSON configs, generating mascot-slugged AI voice/music clips (`_<mascot_slug>.wav`), assembling the final stadium mix (`output/*_<mascot_slug>.mp3`), and optionally playing the result right in your terminal:
