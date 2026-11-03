@@ -9,7 +9,8 @@
 
 ## 📌 Active & Pending Tasks
 - [ ] Monitor Google Gemini API releases for new audio generation features and voice models.
-- [ ] Add DevFest Montreal presentation slides and recording links to [`README.md`](README.md) post-conference.
+- [ ] Add DevFest Montreal session recording link to [`README.md`](README.md) post-conference.
+- [x] Add DevFest Montreal presentation slides link to [`README.md`](README.md) (via the `aitalian.ca/devfestmtl2026-slides` redirect, so the target can change without a commit).
 - [ ] Optional: Develop web-based touch panel UI for live game-day audio triggering.
 
 ---

@@ -20,7 +20,7 @@ This project was built as a live proof-of-concept demo presented at **DevFest Mo
 
 This project was showcased at **DevFest Montreal**:
 
-- 📺 **Presentation Slides**: *[Link to DevFest Montreal Slides - Coming Soon]*
+- 📺 **Presentation Slides**: [aitalian.ca/devfestmtl2026-slides](https://aitalian.ca/devfestmtl2026-slides)
 - 🏒 **Live Demo Walkthrough / Video**: *[Link to Session Recording / Demo - Coming Soon]*
 
 ---
