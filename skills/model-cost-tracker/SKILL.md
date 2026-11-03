@@ -59,14 +59,13 @@ For verified or updated models, obtain:
 - **Pricing**: Standard and Batch input/output/cache rates per 1M tokens or per-request costs.
 
 ### Step 5: Update Local Configuration Data
-Apply the updates to [`config/cost_rates.json`](config/cost_rates.json):
+Preview, then apply the updates to [`config/cost_rates.json`](config/cost_rates.json) (refreshes live Vertex AI TTS rates and rebuilds the `platforms` / `rates` lookup tables from `tracked_models`):
 ```bash
+python update_cost_rates.py --dry-run
 python update_cost_rates.py --update
 ```
-Or register a newly introduced model:
-```bash
-python update_cost_rates.py --add-model "gemini-3.8-flash" --role "announcer_script"
-```
+
+To register a newly introduced model, there is no CLI flag: add an entry under `tracked_models` in [`config/cost_rates.json`](config/cost_rates.json), copying the shape of an existing model of the same role (`display_name`, `role`, `description`, `documentation_url`, `supported_channels`, `status`, `version_rank`, `rates`, `availability`), then run `--update` to sync the platform matrices and rate tables. Run `python update_cost_rates.py --sync-readme` afterwards to refresh model names in `README.md`.
 
 ### Step 6: Maintain Documentation & Project References
 Whenever model versions, defaults, or pricing are updated:
