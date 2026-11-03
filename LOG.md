@@ -7,6 +7,12 @@
 
 ---
 
+## [2026-11-02] Public Release Prep: Original SFX Generator, Offline Fallback & Disclaimers
+- **Stadium Sound Effects Generator (`generate_sfx.py`, `sfx_templates.json`)**: Added a Lyria-powered generator for original goal horns, crowd cheers and other `sfx_*` assets, with Pydub trim/fade post-processing, cost estimates, `--dry-run`, `--only` and `--force`. `generate_music_clip_lyria()` now accepts an `input_text` override so SFX prompts are not wrapped as entrance music.
+- **Offline Playback & Demo Fallback (`README.md`)**: Documented that generation requires network access while `assemble_show.py` mixes fully offline, plus one-line `afplay` / `ffplay` playback of the committed demo mixes.
+- **Distinct Demo Mix Outputs**: `run_of_show_canadiens.json` now writes `devfest_montreal_80s_assembled_dry.mp3` so it no longer overwrites the `run_of_show.json` mix.
+- **Setup & Disclaimers**: Added FFmpeg and API key prerequisites, `.env.example` (with a `.gitignore` exception), an AI-generated audio notice, and a Montreal Canadiens / NHL non-affiliation notice.
+
 ## [2026-11-01] Live Demo Start-to-Finish Setup Wizard & Mascot-Slugged Artifacts
 - **Mascot-Slugged Artifact Naming (`get_mascot_slug` & `apply_mascot_slug_to_filename` in `common.py`)**: Standardized `_{mascot_slug}` filename tagging across `setup_wizard.py`, `generate_gemini_audio.py`, and `assemble_show.py` for all generated intro clips (`input/*_<slug>.wav`), player clips (`input/#Num Name_<slug>.wav`), custom music tracks (`music/background_music_<slug>.mp3`), and assembled output mixes (`output/*_<slug>.mp3`), while leaving pre-recorded `sfx_*` assets untouched and preventing cache collisions or overwriting existing team files.
 - **Streamlined Crowd-Polling & Start-to-Finish Flow (`setup_wizard.py`)**: Tucked low-level model/batching/platform questions behind an optional `[y/N]` toggle, added smart mascot derivation and team-specific intro clip adaptation when team/mascot changes, added `[K]eep / [A]dd / [N]ew` player roster polling options, and added built-in start-to-finish execution (`generate_gemini_audio.py` + `assemble_show.py` + optional macOS `afplay` playback).

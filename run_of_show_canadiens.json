@@ -5,7 +5,7 @@
     "music_volume_db": -6,
     "input_folder": "input",
     "output_folder": "output",
-    "output_filename": "devfest_montreal_80s_assembled.mp3",
+    "output_filename": "devfest_montreal_80s_assembled_dry.mp3",
     "roster_config": "roster_templates_canadiens.json",
     "normalize_output": true,
     "default_ducking_vol_db": -9,

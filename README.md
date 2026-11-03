@@ -178,11 +178,23 @@ For both new users and seasoned producers, we recommend following this clear 5-s
 ```
 
 ### Step 1: Run the Interactive Setup & Live Demo Wizard (Start Here!)
-Start with creating, activating and initializing a Python virtual environment.
+**Prerequisites**: Python 3, [FFmpeg](https://ffmpeg.org/) (used by Pydub for all audio decoding and mixing), and a [Google Gemini API key](https://aistudio.google.com/apikey) for generation (mixing pre-generated audio needs no key).
+```bash
+# macOS (Homebrew); on Debian/Ubuntu use: sudo apt install ffmpeg
+brew install ffmpeg
+```
+
+Create, activate and initialize a Python virtual environment:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+Add your API key to a local `.env` file (git-ignored). The setup wizard can also do this for you on first run:
+```bash
+cp .env.example .env
+# then edit .env and set GEMINI_API_KEY
 ```
 
 Launch [`setup_wizard.py`](setup_wizard.py). The wizard detects any existing configuration files (`roster_templates.json` and `run_of_show.json`) and loads their values as **implied defaults**. Press **Enter** to accept defaults or poll your crowd/team for custom values.
@@ -209,6 +221,12 @@ python generate_gemini_audio.py -r roster_templates.json --dry-run
 python generate_gemini_audio.py -r roster_templates.json
 ```
 
+**Optional: Generate original sound effects.** Goal horns and crowd cheers can be generated with Lyria instead of downloaded, so your show never depends on audio you don't have rights to:
+```bash
+python generate_sfx.py --dry-run
+python generate_sfx.py
+```
+
 ### Step 4: Assemble the Master Stadium Audio Mix
 Stitch and master your voice clips, sound effects, and entrance music using [`assemble_show.py`](assemble_show.py):
 ```bash
@@ -219,11 +237,27 @@ python assemble_show.py -c run_of_show.json
 ### Step 5: Game-Day Arena Playback
 Copy or stream the assembled MP3 from your phone or tablet to the arena soundboard using a Bluetooth auxiliary receiver.
 
+### 🛟 Offline Playback & Live Demo Fallback
+Generation (`setup_wizard.py`, `generate_gemini_audio.py`, `generate_voice_samples.py`, `generate_sfx.py`) calls Google's cloud APIs and **requires a network connection**. Everything after generation runs locally:
+
+- **Re-mix offline**: `assemble_show.py` only reads files from `input/` and `music/`, so it needs no network or API key. Pass `-f` to rebuild an existing mix:
+  ```bash
+  python assemble_show.py -c run_of_show.json -f
+  ```
+- **Play the prerecorded demo mix** (no Python needed):
+  ```bash
+  # macOS
+  afplay output/devfest_montreal_80s_assembled.mp3
+  # Linux / Windows: ffplay ships with FFmpeg
+  ffplay -nodisp -autoexit output/devfest_montreal_80s_assembled.mp3
+  ```
+  The committed demo mixes in `output/` are `devfest_montreal_80s_assembled.mp3` (`run_of_show.json`), `devfest_montreal_80s_assembled_dry.mp3` (`run_of_show_canadiens.json`, no reverb) and `devfest_montreal_80s_assembled_with_reverb.mp3` (`run_of_show_canadiens_with_reverb.json`).
+
 ---
 
 ## 🛠️ Comprehensive Utility Scripts Reference
 
-TeamHypeAI provides 6 dedicated CLI utilities designed for distinct stages of the sports audio production lifecycle:
+TeamHypeAI provides 7 dedicated CLI utilities designed for distinct stages of the sports audio production lifecycle:
 
 ### 1. `setup_wizard.py` - Interactive Live Demo & Team Onboarding Wizard
 - **What it is & Why**: A streamlined interactive terminal wizard designed for both live crowd-polled demos and first-time onboarding. Prompts for key creative inputs (team name, mascot/slogan, announcer persona, voice selection, music prompt, intro clips, and player roster) while tucking technical model/batching settings behind smart defaults.
@@ -330,6 +364,27 @@ TeamHypeAI provides 6 dedicated CLI utilities designed for distinct stages of th
   ```bash
   # Audit stadium voice catalog:
   python update_gemini_voices.py --check
+  ```
+
+---
+
+### 7. `generate_sfx.py` - Stadium Sound Effects Generator
+- **What it is & Why**: Generates original stadium sound effects (goal horns, crowd cheers, organ stings) with Google Lyria from text prompts in [`sfx_templates.json`](sfx_templates.json), then trims and fades each clip with Pydub and saves it to `input/` as an `sfx_*` file ready for `run_of_show.json`. Generating your own SFX avoids redistributing third-party recordings you don't hold rights to.
+- **Configuring clips**: Each entry in `clips` sets `filename` (its extension picks the output format), `prompt`, `duration_seconds` (requested length), and optional post-processing: `max_duration_ms`, `fade_in_ms`, `fade_out_ms`.
+- **Key CLI Flags**:
+  - `-c`, `--config`: Path to SFX template JSON (default: `sfx_templates.json`).
+  - `--only "sfx_goal-horn.mp3"`: Generates only the listed clips (comma-separated).
+  - `--music-model`: Overrides the Lyria model (default: config `music_model` or `lyria-3.5`).
+  - `--dry-run`: Previews prompts and estimated cost without calling Google APIs.
+  - `-f`, `--force`: Regenerates existing SFX files (useful for re-rolling a take you don't like).
+  - `-y`, `--yes`: Automatically accepts estimated cost prompt.
+- **Examples**:
+  ```bash
+  # Preview SFX prompts and cost:
+  python generate_sfx.py --dry-run
+
+  # Re-roll just the goal horn:
+  python generate_sfx.py --only sfx_goal-horn.mp3 --force
   ```
 
 ---
@@ -530,7 +585,7 @@ To adhere to strict **DRY (Don't Repeat Yourself)** principles, all model config
 
 TeamHypeAI allows full flexibility to mix AI-generated audio with custom human-recorded clips or professional tracks:
 1. **Custom Music**: Place an audio file at `music/background_music.mp3`. The pipeline automatically skips Lyria generation and mixes your music.
-2. **Custom SFX & Goal Horns**: Drop audio files (e.g. `sfx_goal_horn.wav`, `Make Some Noise.wav`) into `input/`. Existing files are preserved and never overwritten unless `--force` is specified.
+2. **Custom SFX & Goal Horns**: Drop audio files (e.g. `sfx_goal_horn.wav`, `Make Some Noise.wav`) into `input/`, or generate original ones with [`generate_sfx.py`](generate_sfx.py). Existing files are preserved and never overwritten unless `--force` is specified. Only use recordings you have the rights to, especially if you publish your fork.
 3. **Hybrid Roster**: Combine AI-generated introductions for player intros with pre-recorded coach clips or team chants.
 
 ---
@@ -562,5 +617,7 @@ TeamHypeAI allows full flexibility to mix AI-generated audio with custom human-r
 This project is licensed under the **GNU Affero General Public License v3.0 (GNU AGPLv3)**. See the [LICENSE](LICENSE) file or visit [https://www.gnu.org/licenses/](https://www.gnu.org/licenses/) for details.
 
 ### Disclaimers & API Terms
+- **AI-generated audio**: The announcer voice clips (`input/`, `samples/`) and background music (`music/`) in this repository were generated with Google Gemini TTS and Lyria models, and the demo mixes in `output/` are built from them. They are synthetic voices, not recordings of real announcers.
+- **Trademarks & names**: The Montreal Canadiens name and the 1986 roster are used only to reference the team and its historic players for a non-commercial conference demo. This project is **not affiliated with, sponsored by, or endorsed by the Montreal Canadiens, the National Hockey League, or any player**. All trademarks belong to their respective owners.
 - This project is **not created, maintained, or endorsed by Google LLC**.
 - Running this tool requires a Google Gemini API key or Google Cloud account. Users are solely responsible for all API usage, billing, rate limit adherence, and compliance with the [Google Gemini API Terms of Service](https://ai.google.dev/terms) and [Google Cloud Terms of Service](https://cloud.google.com/terms).

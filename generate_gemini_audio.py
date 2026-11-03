@@ -876,12 +876,13 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
     return False
 
 
-def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, duration_sec=30, force=False, max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True, use_vertex=False):
+def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, duration_sec=30, force=False, max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True, use_vertex=False, input_text=None):
     """
     Generates background music track exclusively using Google Lyria AI music models.
     Supports both Google Interactions API (client.interactions.create, June 2026 standard)
     and legacy generateContent API (client.models.generate_content) with automatic fallback.
     Strictly uses the selected Lyria model without model substitution.
+    Pass `input_text` to replace the default entrance-music prompt wrapper (used by generate_sfx.py).
     """
     out_path = os.path.join(music_dir, filename)
     duration_sec = min(duration_sec, 120)
@@ -911,16 +912,20 @@ def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, d
         return False
 
     engine_label = "Interactions API" if api_engine == API_ENGINE_INTERACTIONS else "generateContent API"
-    print(f"🎵 Generating 30s loopable background music track using Google Lyria model '{model_name}' [{engine_label}]...")
+    if input_text:
+        print(f"🔊 Generating {duration_sec}s sound effect using Google Lyria model '{model_name}' [{engine_label}]...")
+    else:
+        print(f"🎵 Generating 30s loopable background music track using Google Lyria model '{model_name}' [{engine_label}]...")
     print(f"   Prompt: '{prompt}'")
 
     from google.genai import types
     from google.genai.errors import APIError
 
-    input_text = (
-        f"Instrumental stadium entrance background music track ({duration_sec} seconds, loopable, high-energy, "
-        f"strictly NO vocals, NO singing, NO speech, NO lyrics): {prompt}"
-    )
+    if not input_text:
+        input_text = (
+            f"Instrumental stadium entrance background music track ({duration_sec} seconds, loopable, high-energy, "
+            f"strictly NO vocals, NO singing, NO speech, NO lyrics): {prompt}"
+        )
 
     for attempt in range(1, max_retries + 1):
         log_api_event("LYRIA_MUSIC", "REQUEST", {
@@ -959,7 +964,8 @@ def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, d
                         return generate_music_clip_lyria(
                             client, prompt, filename, music_dir, model_name,
                             duration_sec=duration_sec, force=force, max_retries=max_retries,
-                            api_engine=API_ENGINE_LEGACY, allow_fallback=False, use_vertex=use_vertex
+                            api_engine=API_ENGINE_LEGACY, allow_fallback=False, use_vertex=use_vertex,
+                            input_text=input_text
                         )
                     raise RuntimeError(f"No audio data returned by Interactions API for '{filename}'")
             except Exception as e:
@@ -976,7 +982,8 @@ def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, d
                     return generate_music_clip_lyria(
                         client, prompt, filename, music_dir, model_name,
                         duration_sec=duration_sec, force=force, max_retries=max_retries,
-                        api_engine=API_ENGINE_LEGACY, allow_fallback=False, use_vertex=use_vertex
+                        api_engine=API_ENGINE_LEGACY, allow_fallback=False, use_vertex=use_vertex,
+                        input_text=input_text
                     )
                 if any(kw in str(e).upper() for kw in ["404", "NOT_FOUND", "PERMISSION_DENIED", "SERVICE_BLOCKED"]):
                     print(f"   ⚠️ Lyria Music notice: Model '{model_name}' is unavailable on this platform/project ({brief_err}).")
