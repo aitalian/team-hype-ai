@@ -33,7 +33,7 @@
     - `Algenib` (Male, Gravelly: Gravelly / Raspy Rock Arena Voice)
     - `Laomedeia` (Female, Upbeat: Upbeat / High-Enthusiasm Arena Voice)
     - `Alnilam` (Male, Firm: Firm / Powerful Stadium Voice)
-    - `Pulcherrima` (Male, Forward: Forward / Rapid-Fire PA Delivery)
+    - `Pulcherrima` (Female, Forward: Forward / Rapid-Fire PA Delivery)
     - `Sadachbia` (Male, Lively: Lively / Dynamic Arena Announcer)
 - **Gemini 3.8 Flash TTS Architecture & Speech Metadata (`types.SpeechMetadata`)**:
   - **Verbatim Transcript Model**: Unlike earlier preview models where directorial instructions could be placed in plain text, Gemini 3.8 Flash TTS strictly treats input text as a verbatim transcript to be spoken aloud. Placing prompt prefixes (`Say rapidly...`) or bracketed tags (`[excitedly]`) in text causes the synthesizer to verbalize them.
@@ -480,7 +480,7 @@ The voice catalog is strictly constrained according to two mandatory rules:
 | **`Algenib`** | Male | Gravelly | Gravelly / Raspy Rock Arena Voice |
 | **`Laomedeia`** | Female | Upbeat | Upbeat / High-Enthusiasm Arena Voice |
 | **`Alnilam`** | Male | Firm | Firm / Powerful Stadium Voice |
-| **`Pulcherrima`** | Male | Forward | Forward / Rapid-Fire PA Delivery |
+| **`Pulcherrima`** | Female | Forward | Forward / Rapid-Fire PA Delivery |
 | **`Sadachbia`** | Male | Lively | Lively / Dynamic Arena Announcer |
 
 #### Excluded Upstream Voices (16) & Rejection Rationale:

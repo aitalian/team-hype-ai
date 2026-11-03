@@ -19,6 +19,7 @@ import json
 import re
 import datetime
 import urllib.request
+import http.cookiejar
 import argparse
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
@@ -28,6 +29,19 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 VOICES_JSON_PATH = PROJECT_ROOT / "config" / "gemini_voices.json"
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+
+
+
+def fetch_html(url: str, timeout: int = 15) -> str:
+    """
+    Fetches a documentation page. Google's docs set a cookie and redirect to the same URL,
+    which plain urllib.request.urlopen treats as an infinite redirect loop, so keep cookies.
+    """
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    with opener.open(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8")
+
 
 # Fallback sources if config is empty or newly created
 DEFAULT_SOURCES = {
@@ -101,43 +115,45 @@ def fetch_upstream_voices(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     cloud_url = sources.get("cloud_tts_docs")
     if cloud_url:
         try:
-            req = urllib.request.Request(cloud_url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                html = resp.read().decode("utf-8")
-                matches = re.findall(r"<td>([A-Za-z]+)</td>\s*<td>(Male|Female)</td>", html)
-                for name, gender in matches:
-                    if name in voices_by_name:
-                        voices_by_name[name]["gender"] = gender
-                    else:
-                        voices_by_name[name] = {
-                            "name": name,
-                            "gender": gender,
-                            "tone": "Unknown",
-                            "category": "Unspecified"
-                        }
-        except Exception:
-            pass
+            html = fetch_html(cloud_url)
+            matches = re.findall(r"<td>([A-Za-z]+)</td>\s*<td>(Male|Female)</td>", html)
+            if not matches:
+                print(f"⚠️  Could not parse voice genders from {cloud_url}; using genders from local config.")
+            for name, gender in matches:
+                if name in voices_by_name:
+                    voices_by_name[name]["gender"] = gender
+                else:
+                    voices_by_name[name] = {
+                        "name": name,
+                        "gender": gender,
+                        "tone": "Unknown",
+                        "category": "Unspecified"
+                    }
+        except Exception as e:
+            print(f"⚠️  Could not fetch {cloud_url} ({e}); using genders from local config.")
 
     # 2. Fetch AI Studio guide for tone descriptors
     guide_url = sources.get("gemini_tts_guide")
     if guide_url:
         try:
-            req = urllib.request.Request(guide_url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                html = resp.read().decode("utf-8")
-                matches = re.findall(r"<b>([A-Za-z]+)</b>\s*--\s*<em>([A-Za-z\-]+)</em>", html)
-                for name, tone in matches:
-                    if name in voices_by_name:
-                        voices_by_name[name]["tone"] = tone
-                    else:
-                        voices_by_name[name] = {
-                            "name": name,
-                            "tone": tone,
-                            "gender": "Unknown",
-                            "category": "Unspecified"
-                        }
-        except Exception:
-            pass
+            html = fetch_html(guide_url)
+            # The guide has shipped both HTML (<b>Name</b> -- <em>Tone</em>) and Markdown (**Name** -- *Tone*)
+            matches = re.findall(r"<b>([A-Za-z]+)</b>\s*--\s*<em>([A-Za-z\-]+)</em>", html)
+            matches += re.findall(r"\*\*([A-Za-z]+)\*\*\s*--\s*\*([A-Za-z\-]+)\*", html)
+            if not matches:
+                print(f"⚠️  Could not parse voice tones from {guide_url}; using tones from local config.")
+            for name, tone in matches:
+                if name in voices_by_name:
+                    voices_by_name[name]["tone"] = tone
+                else:
+                    voices_by_name[name] = {
+                        "name": name,
+                        "tone": tone,
+                        "gender": "Unknown",
+                        "category": "Unspecified"
+                    }
+        except Exception as e:
+            print(f"⚠️  Could not fetch {guide_url} ({e}); using tones from local config.")
 
     return list(voices_by_name.values())
 

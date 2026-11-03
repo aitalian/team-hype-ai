@@ -7,6 +7,11 @@
 
 ---
 
+## [2026-11-02] Voice Catalog Audit (`voice-catalog-tracker`)
+- **No Catalog Changes**: Verified all 30 prebuilt Gemini TTS voices against the live AI Studio speech guide (tones) and Cloud Gemini-TTS docs (genders). The 14 vetted high-energy voices and 16 exclusions in `config/gemini_voices.json` match upstream exactly; only `_meta.last_updated` was refreshed. Cached auditions in `samples/` cover all 14 vetted voices.
+- **Upstream Scraper Fix (`update_gemini_voices.py`)**: Google's docs now redirect through a cookie, which sent `urllib` into a redirect loop, and the guide switched to Markdown (`**Name** -- *Tone*`). Both failures were swallowed by `except: pass`, so audits silently compared the config against itself. Added a cookie-aware `fetch_html()`, Markdown tone parsing, and visible warnings when a source can't be fetched or parsed.
+- **Docs**: Corrected `Pulcherrima` to Female (per Google's Cloud docs and our config) in `GEMINI.md` and the skill.
+
 ## [2026-11-02] Model & Pricing Audit (`model-cost-tracker`)
 - **No Upgrades Pending**: Audited the 61 models listed by Google AI Studio against `config/cost_rates.json`. `gemini-3.8-flash`, `gemini-3.8-flash-tts` and `lyria-3.5` remain the newest generation in their roles; tracked rates, platform availability and README model references were already current, so only `_meta.last_updated` was refreshed.
 - **Noted, Not Tracked**: `gemini-3.7-flash` (older than the 3.8 default), `gemini-omni-*` and `gemini-4-argon` (not in a TeamHypeAI role), and `lyria-realtime-exp` (experimental streaming). `lyria-002` is absent from AI Studio as expected (Vertex AI only; not re-verified without a GCP project).

@@ -53,7 +53,7 @@ Extended English voices that satisfy high-energy sports delivery criteria:
 - **`Algenib`** (Male, Gravelly) - Gravelly / Raspy Rock Arena Voice
 - **`Laomedeia`** (Female, Upbeat) - Upbeat / High-Enthusiasm Arena Voice
 - **`Alnilam`** (Male, Firm) - Firm / Powerful Stadium Voice
-- **`Pulcherrima`** (Male, Forward) - Forward / Rapid-Fire PA Delivery
+- **`Pulcherrima`** (Female, Forward) - Forward / Rapid-Fire PA Delivery
 - **`Sadachbia`** (Male, Lively) - Lively / Dynamic Arena Announcer
 
 ---

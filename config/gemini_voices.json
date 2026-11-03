@@ -4,7 +4,7 @@
       "gemini_tts_guide": "https://ai.google.dev/gemini-api/docs/speech-generation",
       "cloud_tts_docs": "https://docs.cloud.google.com/text-to-speech/docs/gemini-tts"
     },
-    "last_updated": "2026-10-12 17:56:36 UTC",
+    "last_updated": "2026-11-03 04:37:58 UTC",
     "filter_criteria": {
       "language": "en",
       "energy": "high_energy",
