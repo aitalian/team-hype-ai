@@ -7,6 +7,10 @@
 
 ---
 
+## [2026-11-02] Model & Pricing Audit (`model-cost-tracker`)
+- **No Upgrades Pending**: Audited the 61 models listed by Google AI Studio against `config/cost_rates.json`. `gemini-3.8-flash`, `gemini-3.8-flash-tts` and `lyria-3.5` remain the newest generation in their roles; tracked rates, platform availability and README model references were already current, so only `_meta.last_updated` was refreshed.
+- **Noted, Not Tracked**: `gemini-3.7-flash` (older than the 3.8 default), `gemini-omni-*` and `gemini-4-argon` (not in a TeamHypeAI role), and `lyria-realtime-exp` (experimental streaming). `lyria-002` is absent from AI Studio as expected (Vertex AI only; not re-verified without a GCP project).
+
 ## [2026-11-02] Public Release Prep: CC0 SFX, Experimental SFX Generator, Offline Fallback & Disclaimers
 - **CC0 Sound Effects (`input/sfx_goal-horn.wav`, `input/sfx_crowd-cheer.wav`)**: Replaced the previous third-party SFX of unknown license with CC0 recordings from Freesound (credited in `README.md` → Audio Credits), updated all Run of Show configs (crowd cheer capped at `clip_duration_ms: 5000`), re-rendered the demo mixes, and scrubbed the old SFX files and the mixes built from them from git history.
 - **Experimental Stadium Sound Effects Generator (`generate_sfx.py`, `sfx_templates.json`)**: Added a Lyria-powered generator for original goal horns, crowd cheers and other `sfx_*` assets, with Pydub trim/fade post-processing, cost estimates, `--dry-run`, `--only` and `--force`. `generate_music_clip_lyria()` now accepts an `input_text` override so SFX prompts are not wrapped as entrance music. Marked experimental: Lyria output tends to contain music, so CC0 recordings were used for the demo.
