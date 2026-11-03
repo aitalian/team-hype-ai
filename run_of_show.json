@@ -18,7 +18,7 @@
   },
   "sequence": [
     {
-      "file": "sfx_canadiens-de-montreal.wav",
+      "file": "sfx_goal-horn.wav",
       "ducking": false,
       "pre_delay_ms": 0,
       "post_delay_ms": 0,
@@ -52,7 +52,8 @@
       "reverb": "stadium"
     },
     {
-      "file": "sfx_crowd-cheer-and-applause.wav",
+      "file": "sfx_crowd-cheer.wav",
+      "clip_duration_ms": 5000,
       "ducking": false,
       "pre_delay_ms": 0,
       "post_delay_ms": 400,

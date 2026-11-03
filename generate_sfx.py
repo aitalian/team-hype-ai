@@ -7,10 +7,14 @@ with Google Lyria AI from text prompts defined in `sfx_templates.json`, then tri
 fades each clip with Pydub and saves it into `input/` as a drop-in `sfx_*` asset for
 `assemble_show.py`. Generating your own SFX avoids redistributing third-party recordings.
 
+EXPERIMENTAL: Lyria is a music model, so results often contain melodies, beats or
+background music even with strict "no music" prompts. Listen before using a clip; a CC0
+recording dropped into `input/` (e.g. from freesound.org) is usually the better choice.
+
 Usage:
     python3 generate_sfx.py --dry-run
     python3 generate_sfx.py
-    python3 generate_sfx.py --only sfx_goal-horn.mp3 --force
+    python3 generate_sfx.py --only sfx_lyria_goal-horn.mp3 --force
 """
 
 import os
@@ -36,20 +40,31 @@ DEFAULT_SFX_DURATION_SEC = 10
 
 
 def build_sfx_input_text(prompt, duration_sec):
-    """Wraps a user SFX prompt so Lyria returns a short sound effect rather than a song."""
+    """
+    Wraps a user SFX prompt so Lyria (a music model) returns a raw field-recorded sound effect
+    rather than a song. Negative framing is repeated deliberately: softer wording still yields music.
+    """
     return (
-        f"Short stadium sound effect, not a song ({duration_sec} seconds, no melody development, "
-        f"strictly NO singing, NO intelligible speech, NO lyrics): {prompt}"
+        f"Isolated sound effect field recording, {duration_sec} seconds. This is NOT music and NOT a song: "
+        f"absolutely NO music, NO melody, NO chords, NO harmony, NO beat, NO rhythm, NO drums, NO percussion, "
+        f"NO bass line, NO musical instruments, NO backing track, NO singing, NO lyrics, NO intelligible speech. "
+        f"Only the raw sound source itself, as captured by a single microphone: {prompt}"
     )
 
 
-def finalize_sfx_clip(raw_path, out_path, max_duration_ms=0, fade_in_ms=0, fade_out_ms=0):
-    """Trims and fades the raw Lyria output with Pydub and exports it in the format implied by out_path."""
+def finalize_sfx_clip(raw_path, out_path, max_duration_ms=0, fade_in_ms=0, fade_out_ms=0, normalize_headroom_db=None):
+    """
+    Trims, peak-normalizes and fades the raw Lyria output with Pydub and exports it in the
+    format implied by out_path. Pass normalize_headroom_db (e.g. 0.5) to raise the clip to full level.
+    """
     from pydub import AudioSegment
+    from pydub.effects import normalize
 
     clip = AudioSegment.from_file(raw_path)
     if max_duration_ms and max_duration_ms > 0:
         clip = clip[:max_duration_ms]
+    if normalize_headroom_db is not None:
+        clip = normalize(clip, headroom=normalize_headroom_db)
     if fade_in_ms and fade_in_ms > 0:
         clip = clip.fade_in(min(fade_in_ms, len(clip)))
     if fade_out_ms and fade_out_ms > 0:
@@ -159,7 +174,9 @@ def main():
             duration_sec = clip.get("duration_seconds", DEFAULT_SFX_DURATION_SEC)
             print(f"📁 {out_path}{status}")
             print(f"   Prompt: \"{build_sfx_input_text(clip['prompt'], duration_sec)}\"")
-            print(f"   Post-processing: trim to {clip.get('max_duration_ms', 0) or 'full length'} ms, "
+            norm = clip.get("normalize_headroom_db")
+            norm_desc = f"normalize to -{norm} dB peak, " if norm is not None else ""
+            print(f"   Post-processing: trim to {clip.get('max_duration_ms', 0) or 'full length'} ms, {norm_desc}"
                   f"fade in {clip.get('fade_in_ms', 0)} ms, fade out {clip.get('fade_out_ms', 0)} ms\n")
         return
 
@@ -207,7 +224,8 @@ def main():
                     out_path,
                     max_duration_ms=clip.get("max_duration_ms", 0),
                     fade_in_ms=clip.get("fade_in_ms", 0),
-                    fade_out_ms=clip.get("fade_out_ms", 0)
+                    fade_out_ms=clip.get("fade_out_ms", 0),
+                    normalize_headroom_db=clip.get("normalize_headroom_db")
                 )
                 print(f"   ✅ Sound effect ready ({length_ms / 1000:.1f}s): {out_path}")
             else:

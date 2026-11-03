@@ -3,17 +3,19 @@
   "music_model": "lyria-3.5",
   "clips": [
     {
-      "filename": "sfx_goal-horn.mp3",
-      "prompt": "A single loud hockey arena goal horn blast: deep, brassy, foghorn-like air horn holding one sustained low note for about four seconds, ringing out with big arena reverb, then decaying naturally. No drums, no melody, no other instruments.",
-      "duration_seconds": 10,
-      "max_duration_ms": 6000,
+      "filename": "sfx_lyria_goal-horn.mp3",
+      "prompt": "One single continuous blast of an extremely loud air horn, like a freight train horn or a ship's foghorn, used as a hockey arena goal horn. A deep, brassy, droning tone held at constant pitch and full volume for the entire duration without stopping, pulsing or changing notes. Mechanical horn sound only, nothing else in the recording.",
+      "duration_seconds": 15,
+      "max_duration_ms": 10000,
+      "normalize_headroom_db": 0.5,
       "fade_out_ms": 1500
     },
     {
-      "filename": "sfx_crowd-cheer.mp3",
-      "prompt": "A packed indoor hockey arena crowd erupting in cheers and applause: thousands of fans roaring, clapping and whistling, swelling to a peak then settling. Ambient crowd texture only, no music, no instruments.",
+      "filename": "sfx_lyria_crowd-cheer.mp3",
+      "prompt": "A sold-out hockey arena crowd going wild after a goal: thousands of fans screaming, cheering loudly, whistling and clapping hard, very loud and close to the microphone. Pure crowd noise only, recorded during a silent moment with no PA system, no organ and no music playing in the building.",
       "duration_seconds": 10,
       "max_duration_ms": 8000,
+      "normalize_headroom_db": 0.5,
       "fade_in_ms": 300,
       "fade_out_ms": 2000
     }

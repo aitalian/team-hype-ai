@@ -114,7 +114,7 @@ sequenceDiagram
     Note over Music,Master: Show Starts: Music Swell (pre_sequence_music_ms = 1500ms)
     Music->>Master: Music playing at baseline (-6dB)
 
-    Note over SFX,Master: Event 1: Intro SFX ("sfx_canadiens-de-montreal.wav")
+    Note over SFX,Master: Event 1: Intro SFX ("sfx_goal-horn.wav")
     SFX->>DSP: Trim to clip_duration_ms (4500ms) + apply fade_out_ms (1500ms)
     DSP->>Master: Overlay SFX over music -> Smoothly fades into background
 
@@ -122,8 +122,8 @@ sequenceDiagram
     Voice->>DSP: Apply Pitch Thickening (0.95x) + Stadium PA Reverb ("stadium")
     DSP->>Master: Play Booming Arena Voice over full music (ducking = false)
 
-    Note over SFX,Master: Event 5: Crowd Cheer ("sfx_crowd-cheer-and-applause.wav")
-    SFX->>DSP: Apply smooth fade_out_ms (1500ms, dry signal)
+    Note over SFX,Master: Event 5: Crowd Cheer ("sfx_crowd-cheer.wav")
+    SFX->>DSP: Trim to clip_duration_ms (5000ms) + apply fade_out_ms (1500ms, dry signal)
     DSP->>Master: Crowd roar blends seamlessly into music (post_delay_ms = 400ms)
 
     Note over Voice,Master: Events 6–7: "Hitting the Forum Ice!" & $ROSTER Loop (#33 Roy, #24 Chelios...)
@@ -221,11 +221,12 @@ python generate_gemini_audio.py -r roster_templates.json --dry-run
 python generate_gemini_audio.py -r roster_templates.json
 ```
 
-**Optional: Generate original sound effects.** Goal horns and crowd cheers can be generated with Lyria instead of downloaded, so your show never depends on audio you don't have rights to:
-```bash
-python generate_sfx.py --dry-run
-python generate_sfx.py
-```
+**Sound effects (`input/sfx_*`)**: The demo uses CC0 (public domain) recordings from [Freesound](https://freesound.org) (see [Audio Credits](#-audio-credits)). To use your own, drop any audio you have the rights to into `input/` and reference it by filename in `run_of_show.json`. Freesound's [Creative Commons 0 filter](https://freesound.org/search/?f=license:%22Creative+Commons+0%22) is a good source.
+
+> 🧪 **Experimental:** [`generate_sfx.py`](generate_sfx.py) can try to generate SFX with Lyria, but Lyria is a music model and results often contain melodies, beats or background music even with strict prompts. During testing the CC0 recordings above sounded far better, so treat it as an experiment:
+> ```bash
+> python generate_sfx.py --dry-run
+> ```
 
 ### Step 4: Assemble the Master Stadium Audio Mix
 Stitch and master your voice clips, sound effects, and entrance music using [`assemble_show.py`](assemble_show.py):
@@ -368,12 +369,14 @@ TeamHypeAI provides 7 dedicated CLI utilities designed for distinct stages of th
 
 ---
 
-### 7. `generate_sfx.py` - Stadium Sound Effects Generator
+### 7. `generate_sfx.py` - Stadium Sound Effects Generator (🧪 Experimental)
+> ⚠️ **Caveat**: Lyria is built for music, so generated "sound effects" frequently come back with melodies, beats or background music, and crowd noise tends to be quiet. For the DevFest demo these clips were not good enough and CC0 recordings were dropped into `input/` instead (see [Audio Credits](#-audio-credits)). Always listen before using a generated clip.
+
 - **What it is & Why**: Generates original stadium sound effects (goal horns, crowd cheers, organ stings) with Google Lyria from text prompts in [`sfx_templates.json`](sfx_templates.json), then trims and fades each clip with Pydub and saves it to `input/` as an `sfx_*` file ready for `run_of_show.json`. Generating your own SFX avoids redistributing third-party recordings you don't hold rights to.
 - **Configuring clips**: Each entry in `clips` sets `filename` (its extension picks the output format), `prompt`, `duration_seconds` (requested length), and optional post-processing: `max_duration_ms`, `fade_in_ms`, `fade_out_ms`.
 - **Key CLI Flags**:
   - `-c`, `--config`: Path to SFX template JSON (default: `sfx_templates.json`).
-  - `--only "sfx_goal-horn.mp3"`: Generates only the listed clips (comma-separated).
+  - `--only "sfx_lyria_goal-horn.mp3"`: Generates only the listed clips (comma-separated).
   - `--music-model`: Overrides the Lyria model (default: config `music_model` or `lyria-3.5`).
   - `--dry-run`: Previews prompts and estimated cost without calling Google APIs.
   - `-f`, `--force`: Regenerates existing SFX files (useful for re-rolling a take you don't like).
@@ -384,7 +387,7 @@ TeamHypeAI provides 7 dedicated CLI utilities designed for distinct stages of th
   python generate_sfx.py --dry-run
 
   # Re-roll just the goal horn:
-  python generate_sfx.py --only sfx_goal-horn.mp3 --force
+  python generate_sfx.py --only sfx_lyria_goal-horn.mp3 --force
   ```
 
 ---
@@ -484,7 +487,7 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
   },
   "sequence": [
     {
-      "file": "sfx_canadiens-de-montreal.wav",
+      "file": "sfx_goal-horn.wav",
       "ducking": false,
       "pre_delay_ms": 0,
       "post_delay_ms": 0,
@@ -510,7 +513,8 @@ The Run of Show config governs the digital audio workstation (DSP) mixing engine
       "reverb": "stadium"
     },
     {
-      "file": "sfx_crowd-cheer-and-applause.wav",
+      "file": "sfx_crowd-cheer.wav",
+      "clip_duration_ms": 5000,
       "ducking": false,
       "pre_delay_ms": 0,
       "post_delay_ms": 400,
@@ -585,7 +589,7 @@ To adhere to strict **DRY (Don't Repeat Yourself)** principles, all model config
 
 TeamHypeAI allows full flexibility to mix AI-generated audio with custom human-recorded clips or professional tracks:
 1. **Custom Music**: Place an audio file at `music/background_music.mp3`. The pipeline automatically skips Lyria generation and mixes your music.
-2. **Custom SFX & Goal Horns**: Drop audio files (e.g. `sfx_goal_horn.wav`, `Make Some Noise.wav`) into `input/`, or generate original ones with [`generate_sfx.py`](generate_sfx.py). Existing files are preserved and never overwritten unless `--force` is specified. Only use recordings you have the rights to, especially if you publish your fork.
+2. **Custom SFX & Goal Horns**: Drop audio files (e.g. `sfx_goal_horn.wav`, `Make Some Noise.wav`) into `input/`, or try generating them with the experimental [`generate_sfx.py`](generate_sfx.py). Existing files are preserved and never overwritten unless `--force` is specified. Only use recordings you have the rights to, especially if you publish your fork.
 3. **Hybrid Roster**: Combine AI-generated introductions for player intros with pre-recorded coach clips or team chants.
 
 ---
@@ -611,13 +615,26 @@ TeamHypeAI allows full flexibility to mix AI-generated audio with custom human-r
 
 ---
 
+## 🔊 Audio Credits
+
+The two sound effects are public domain recordings ([CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)) from Freesound. CC0 doesn't require attribution, but we gladly credit the recordists:
+
+| File | Source | Author | License |
+| :--- | :--- | :--- | :--- |
+| `input/sfx_goal-horn.wav` | [K5HLB.ogg](https://freesound.org/people/Jack_Carsons_RV/sounds/455013/) (Nathan Airchime K5HLB train horn) | [Jack_Carsons_RV](https://freesound.org/people/Jack_Carsons_RV/) | CC0 1.0 |
+| `input/sfx_crowd-cheer.wav` | [Crowd Cheering](https://freesound.org/people/SoundsExciting/sounds/365132/) | [SoundsExciting](https://freesound.org/people/SoundsExciting/) | CC0 1.0 |
+
+All other audio (announcer voices in `input/` and `samples/`, entrance music in `music/`) is AI-generated with Google Gemini TTS and Lyria. The mixes in `output/` combine both.
+
+---
+
 ## ⚖️ License & Disclaimers
 
 ### License
 This project is licensed under the **GNU Affero General Public License v3.0 (GNU AGPLv3)**. See the [LICENSE](LICENSE) file or visit [https://www.gnu.org/licenses/](https://www.gnu.org/licenses/) for details.
 
 ### Disclaimers & API Terms
-- **AI-generated audio**: The announcer voice clips (`input/`, `samples/`) and background music (`music/`) in this repository were generated with Google Gemini TTS and Lyria models, and the demo mixes in `output/` are built from them. They are synthetic voices, not recordings of real announcers.
+- **AI-generated audio**: The announcer voice clips (`input/`, `samples/`) and background music (`music/`) in this repository were generated with Google Gemini TTS and Lyria models, and the demo mixes in `output/` are built from them plus the CC0 sound effects listed in [Audio Credits](#-audio-credits). They are synthetic voices, not recordings of real announcers.
 - **Trademarks & names**: The Montreal Canadiens name and the 1986 roster are used only to reference the team and its historic players for a non-commercial conference demo. This project is **not affiliated with, sponsored by, or endorsed by the Montreal Canadiens, the National Hockey League, or any player**. All trademarks belong to their respective owners.
 - This project is **not created, maintained, or endorsed by Google LLC**.
 - Running this tool requires a Google Gemini API key or Google Cloud account. Users are solely responsible for all API usage, billing, rate limit adherence, and compliance with the [Google Gemini API Terms of Service](https://ai.google.dev/terms) and [Google Cloud Terms of Service](https://cloud.google.com/terms).

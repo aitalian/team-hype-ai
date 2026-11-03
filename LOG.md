@@ -7,8 +7,9 @@
 
 ---
 
-## [2026-11-02] Public Release Prep: Original SFX Generator, Offline Fallback & Disclaimers
-- **Stadium Sound Effects Generator (`generate_sfx.py`, `sfx_templates.json`)**: Added a Lyria-powered generator for original goal horns, crowd cheers and other `sfx_*` assets, with Pydub trim/fade post-processing, cost estimates, `--dry-run`, `--only` and `--force`. `generate_music_clip_lyria()` now accepts an `input_text` override so SFX prompts are not wrapped as entrance music.
+## [2026-11-02] Public Release Prep: CC0 SFX, Experimental SFX Generator, Offline Fallback & Disclaimers
+- **CC0 Sound Effects (`input/sfx_goal-horn.wav`, `input/sfx_crowd-cheer.wav`)**: Replaced the previous third-party SFX of unknown license with CC0 recordings from Freesound (credited in `README.md` → Audio Credits), updated all Run of Show configs (crowd cheer capped at `clip_duration_ms: 5000`), re-rendered the demo mixes, and scrubbed the old SFX files and the mixes built from them from git history.
+- **Experimental Stadium Sound Effects Generator (`generate_sfx.py`, `sfx_templates.json`)**: Added a Lyria-powered generator for original goal horns, crowd cheers and other `sfx_*` assets, with Pydub trim/fade post-processing, cost estimates, `--dry-run`, `--only` and `--force`. `generate_music_clip_lyria()` now accepts an `input_text` override so SFX prompts are not wrapped as entrance music. Marked experimental: Lyria output tends to contain music, so CC0 recordings were used for the demo.
 - **Offline Playback & Demo Fallback (`README.md`)**: Documented that generation requires network access while `assemble_show.py` mixes fully offline, plus one-line `afplay` / `ffplay` playback of the committed demo mixes.
 - **Distinct Demo Mix Outputs**: `run_of_show_canadiens.json` now writes `devfest_montreal_80s_assembled_dry.mp3` so it no longer overwrites the `run_of_show.json` mix.
 - **Setup & Disclaimers**: Added FFmpeg and API key prerequisites, `.env.example` (with a `.gitignore` exception), an AI-generated audio notice, and a Montreal Canadiens / NHL non-affiliation notice.
