@@ -179,7 +179,7 @@
 
 To stay well within Free Tier API caps (100 RPD / 10 RPM) while generating full team intros, `generate_gemini_audio.py` uses high-efficiency request batching:
 
-1. **Batched LLM Script Enhancement**: All un-enhanced scripts are rewritten in a single `gemini-3.6-flash` JSON generation call instead of N separate calls.
+1. **Batched LLM Script Enhancement**: All un-enhanced scripts are rewritten in a single `gemini-3.8-flash` JSON generation call instead of N separate calls.
 2. **Batched Gemini TTS & Silence Slicing**: Voice clip prompts are concatenated with explicit acoustic pauses (`... [pause 2s] ...`), generated in chunks (default: 10 clips/request), and sliced into individual `.wav` files using `pydub.silence.split_on_silence`.
 3. **Automatic Fallback Protection**: If batching or audio slicing fails or yields segment mismatches, the engine gracefully falls back to 1:1 legacy generation per item.
 4. **CLI Flags & Configuration**:
@@ -320,7 +320,7 @@ Defines event timeline sequence. Incorporates the `$ROSTER` macro which dynamica
 
 ### Components & Operating Procedure:
 1. **Bluetooth Receiver Unit**: Portable 3.5mm Bluetooth receiver (e.g. Avantree / Anker) plugged into arena PA soundboard aux input jack.
-2. **Device Pairing**: Paired with phone hosting `output/intro_assembled_output.mp3`.
+2. **Device Pairing**: Paired with phone hosting the assembled master mix from `output/` (e.g. `output/devfest_montreal_80s_assembled.mp3`).
 3. **Execution**: Triggered as players assemble at rink entrance doors prior to taking the ice.
 
 ---
@@ -371,9 +371,9 @@ TeamHypeAI maintains a dedicated subset of models specialized for sports stadium
    - `gemini-3.5-flash`: Legacy Flash model ($1.50 in / $9.00 out Standard, $0.75 in / $4.50 out Batch).
    - `gemini-3.5-flash-lite`: Ultra-low cost script formatting ($0.30 in / $2.50 out Standard, $0.15 in / $1.25 out Batch).
 2. **Text-to-Speech Engine (`tts_voice`)**:
-   - `gemini-3.8-flash-tts`: Studio-grade speech generation supporting structured `speech_metadata.style` and inline angle-bracket vocal events ($0.50 in / $10.00 out AI Studio, $1.00 in / $20.00 out Vertex AI).
-   - `gemini-3.8-flash-lite-tts`: High-throughput conversational speech ($0.30 in / $5.00 out AI Studio, $0.60 in / $10.00 out Vertex AI).
-   - `gemini-3.1-flash-tts-preview`: Controllable low-latency speech generation preview ($0.50 in / $10.00 out AI Studio, $1.00 in / $20.00 out Vertex AI).
+   - `gemini-3.8-flash-tts`: Studio-grade speech generation supporting structured `speech_metadata.style` and inline angle-bracket vocal events ($0.50 in / $10.00 out AI Studio, $0.50 in / $9.00 out Vertex AI).
+   - `gemini-3.8-flash-lite-tts`: High-throughput conversational speech ($0.30 in / $5.00 out AI Studio, $0.50 in / $9.00 out Vertex AI).
+   - `gemini-3.1-flash-tts-preview`: Controllable low-latency speech generation preview ($0.50 in / $10.00 out AI Studio, $0.50 in / $9.00 out Vertex AI).
 3. **Stadium Entrance Music Generator (`music_generator`)**:
    - `lyria-3.5`: Next-generation arena entrance music generator ($0.0400 per song request).
    - `lyria-3-clip-preview`: 30-second loopable high-energy rock entrance track generator ($0.0400 per song request).
