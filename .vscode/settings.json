@@ -6,5 +6,6 @@
     "**/.venv": true,
     "**/dist": true,
     "**/*.pyc": true
-  }
+  },
+  "notification.displayMode": "off"
 }
