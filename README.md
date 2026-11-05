@@ -178,7 +178,7 @@ For both new users and seasoned producers, we recommend following this clear 5-s
 ```
 
 ### Step 1: Run the Interactive Setup & Live Demo Wizard (Start Here!)
-**Prerequisites**: Python 3, [FFmpeg](https://ffmpeg.org/) (used by Pydub for all audio decoding and mixing), and a [Google Gemini API key](https://aistudio.google.com/apikey) for generation (mixing pre-generated audio needs no key).
+**Prerequisites**: Python 3.11 or newer, [FFmpeg](https://ffmpeg.org/) (used by Pydub for all audio decoding and mixing), and a [Google Gemini API key](https://aistudio.google.com/apikey) for generation (mixing pre-generated audio needs no key).
 ```bash
 # macOS (Homebrew); on Debian/Ubuntu use: sudo apt install ffmpeg
 brew install ffmpeg
@@ -186,7 +186,8 @@ brew install ffmpeg
 
 Create, activate and initialize a Python virtual environment:
 ```bash
-python -m venv .venv
+python3 --version   # must be 3.11 or newer
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```

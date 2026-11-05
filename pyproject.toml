@@ -7,7 +7,7 @@ name = "team-hype-ai"
 version = "1.0.0"
 description = "Sports intro and team announcement audio assembly powered by Google Gemini & Lyria AI"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 license = {text = "AGPL-3.0-only"}
 dependencies = [
     "google-genai>=2.29.0",
