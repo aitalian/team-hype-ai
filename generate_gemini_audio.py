@@ -221,7 +221,7 @@ def enhance_announcer_script(client, raw_text, llm_model, persona_style="High-en
 
     return clean_spoken_text(raw_text, allow_vocal_tags=True)
 
-
+# MARK: Enhance Scripts
 def batch_enhance_announcer_scripts(client, items_to_enhance, llm_model, persona_style="High-energy stadium PA announcer", theme_context="", delivery_instructions="", regional_accent="", accent_guidance="", max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True):
     """
     Uses LLM (e.g. gemini-3.8-flash) in a single API call to rewrite multiple raw scripts in batch into a JSON mapping.
@@ -339,7 +339,7 @@ def build_intro_clip_announcement(clip, prefix="", global_speech_style=""):
     display_text = clip.get("phonetic") or clip.get("spoken_text") or clip.get("text", "")
     return clean_spoken_text(display_text, prefix=prefix)
 
-
+# MARK: Build Player Announcement
 def build_player_announcement(player, template, prefix="", global_speech_style="", mascot_slug=""):
     num = player.get("number", "")
     name = player.get("name", "")
@@ -537,7 +537,7 @@ def save_audio_bytes(audio_bytes, mime_type, out_path):
             wav_file.setframerate(sample_rate)
             wav_file.writeframes(audio_bytes)
 
-
+# MARK: Generate TTS Clips
 def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, voice_name="Puck", style="", force=False, max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True):
     """
     Generates high-energy announcer voice audio using Google GenAI SDK with rate-limit retries.
@@ -663,7 +663,7 @@ def generate_audio_clip_gemini(client, text, filename, output_dir, model_name, v
 
     return False
 
-
+# MARK: Batch TTS generation
 def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voice_name="Puck", batch_style="", max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True):
     """
     Generates high-energy announcer voice audio for a batch of clips in a single Gemini TTS API request,
@@ -875,7 +875,7 @@ def generate_audio_batch_gemini(client, batch_items, output_dir, model_name, voi
 
     return False
 
-
+# MARK: Lyria
 def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, duration_sec=30, force=False, max_retries=3, api_engine=DEFAULT_API_ENGINE, allow_fallback=True, use_vertex=False, input_text=None):
     """
     Generates background music track exclusively using Google Lyria AI music models.
@@ -1098,7 +1098,7 @@ def generate_music_clip_lyria(client, prompt, filename, music_dir, model_name, d
 
     return False
 
-
+# MARK: Main / Params
 def main():
     load_dotenv_if_present()
     parser = argparse.ArgumentParser(

@@ -355,7 +355,7 @@ def resolve_input_clip_path(input_folder: str, filename: str, mascot_slug: str =
 
     return exact_path, filename
 
-
+# MARK: Assemble Mix
 def assemble_mix(config, roster_config_override=None, cli_reverb_preset=None, cli_no_reverb=False):
     settings = config.get("settings", {})
     raw_sequence = config.get("sequence", [])
