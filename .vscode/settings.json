@@ -7,5 +7,6 @@
     "**/dist": true,
     "**/*.pyc": true
   },
-  "notification.displayMode": "off"
+  "notification.displayMode": "off",
+  "workbench.startupEditor": "none"
 }
