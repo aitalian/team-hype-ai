@@ -5,7 +5,8 @@
     "**/*.env": true,
     "**/.venv": true,
     "**/dist": true,
-    "**/*.pyc": true
+    "**/*.pyc": true,
+    "**/__pycache__": true
   },
   "notification.displayMode": "off",
   "workbench.startupEditor": "none"
