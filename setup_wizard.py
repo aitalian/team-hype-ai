@@ -611,14 +611,19 @@ def main():
 
     # Step 9: Start-to-Finish Execution (Generate AI Audio + Assemble Final Mix)
     run_action = prompt_string(
-        "🚀 Generate AI audio clips & assemble final stadium show now? ([Y]es full pipeline / [d]ry-run preview / [n]o)",
-        "Y"
+        "🚀 Generate AI audio clips & assemble final stadium show now? ([y]es full pipeline / [d]ry-run preview / [N]o)",
+        "N"
     ).lower()
 
     if run_action in ["d", "dry", "dry-run"]:
         print(f"\n🔍 Running dry-run preview for {roster_filename}...")
         subprocess.run([sys.executable, "generate_gemini_audio.py", "-r", roster_filename, "--dry-run"])
-    elif run_action in ["y", "yes"]:
+        run_action = prompt_string(
+            "\n🚀 Proceed with full AI audio generation & show assembly now? (y/N)",
+            "N"
+        ).lower()
+
+    if run_action in ["y", "yes"]:
         print(f"\n🎙️  [1/2] Generating AI voice clips & music via generate_gemini_audio.py (-r {roster_filename})...")
         gen_res = subprocess.run([sys.executable, "generate_gemini_audio.py", "-r", roster_filename, "-y"])
         if gen_res.returncode != 0:
